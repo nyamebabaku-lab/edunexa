@@ -300,7 +300,7 @@ export function useLiveRoom({ code, isHost, me, stream, initial, settings, onAtt
       r.closed = true;
       clearTimeout(retry);
       if (isHost) Object.values(r.members).forEach((m) => send(m.conn, { t: 'end' }));
-      setTimeout(() => r.peer?.destroy(), isHost ? 300 : 0);
+      setTimeout(() => r.peer?.destroy(), isHost ? 2000 : 0);
     };
   }, [stream, code, isHost]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -391,10 +391,13 @@ export function useLiveRoom({ code, isHost, me, stream, initial, settings, onAtt
     if (r.closed) return;
     r.closed = true;
     if (isHost) Object.values(r.members).forEach((m) => send(m.conn, { t: 'end' }));
-    Object.values(r.calls || {}).forEach((c) => c.close());
     r.stream?.getTracks().forEach((t) => t.stop());
-    setTimeout(() => r.peer?.destroy(), 300);
     setStatus(why);
+    // Give the "class ended" message time to arrive before closing the connections.
+    setTimeout(() => {
+      Object.values(r.calls || {}).forEach((c) => c.close());
+      r.peer?.destroy();
+    }, isHost ? 2000 : 0);
   }, [isHost]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleMicRef = useRef(toggleMic);
