@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --brand-50: 239 245 255;
+    --brand-100: 219 232 254;
+    --brand-200: 191 214 254;
+    --brand-300: 147 187 253;
+    --brand-400: 96 151 250;
+    --brand-500: 59 116 246;
+    --brand-600: 37 86 235;
+    --brand-700: 29 67 216;
+    --brand-800: 30 55 175;
+    --brand-900: 30 51 138;
+    --brand-950: 15 29 77;
+    --accent-50: 255 241 243;
+    --accent-100: 255 224 229;
+    --accent-200: 255 198 208;
+    --accent-300: 255 154 171;
+    --accent-400: 253 95 122;
+    --accent-500: 245 45 82;
+    --accent-600: 225 29 72;
+    --accent-700: 190 18 60;
+    --accent-800: 159 18 57;
+    --accent-900: 136 19 55;
+    --accent-950: 76 5 25;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased dark:bg-navy-950 dark:text-slate-200;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  ::selection {
+    @apply bg-brand-200 text-brand-900;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(148 163 184 / 0.5) transparent;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-slate-200/70 bg-white shadow-soft dark:border-white/5 dark:bg-navy-900;
+  }
+  .input {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15 disabled:opacity-60 dark:border-white/10 dark:bg-navy-950 dark:text-slate-100;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400;
+  }
+  .th {
+    @apply whitespace-nowrap px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400;
+  }
+  .td {
+    @apply whitespace-nowrap px-4 py-3 text-sm;
+  }
+  .nav-link {
+    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-white/5 hover:text-white;
+  }
+  .nav-link.active {
+    @apply bg-brand-600 text-white shadow-lg shadow-brand-900/40;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media print {
+  body {
+    background: white !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  body.has-print #root {
+    display: none !important;
+  }
+  .print-overlay {
+    position: static !important;
+    overflow: visible !important;
+  }
+  .break-after-page {
+    break-after: page;
+  }
+  .print-area {
+    box-shadow: none !important;
+    border: none !important;
+  }
+  @page {
+    margin: 12mm;
+  }
+}
