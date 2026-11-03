@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Tutorial video (large; shared separately)
+docs/tutorial/*.mp4

@@ -1,0 +1,23 @@
+0:00 Welcome
+0:07 1. Signing in
+1:01 2. Admin dashboard
+1:53 3. Admissions
+2:28 4. Students & photos
+3:33 5. Staff, HR & payroll
+4:06 6. Classes & timetable
+4:33 7. Attendance register
+4:56 8. Gradebook & report cards
+5:31 9. Learning (LMS)
+5:53 10. Fees & finance
+6:32 11. Canteen
+7:11 12. Store, library, transport & more
+7:48 13. QR gate attendance
+8:37 14. Teacher portal & clock-in
+9:02 15. Live classes
+9:54 16. Parent portal
+10:40 17. Student portal
+11:22 18. Staff portals
+11:53 19. Super Admin settings
+12:29 20. Works offline
+13:07 21. On your phone
+13:31 Thank you

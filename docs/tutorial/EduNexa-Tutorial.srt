@@ -1,0 +1,355 @@
+1
+00:00:10,012 --> 00:00:18,857
+Akwaaba! Welcome to EduNexa, the complete management system for Bright Future International School — from Creche all the way to Diploma.
+
+2
+00:00:19,007 --> 00:00:28,184
+Everyone signs in to their own portal: administrators, teachers, parents, students, the accountant, librarian, storekeeper, transport officer, canteen manager and support staff.
+
+3
+00:00:28,334 --> 00:00:37,500
+In demo mode you can open any portal with one click. Each portal shows only what that person is allowed to see.
+
+4
+00:00:37,650 --> 00:00:45,389
+A school can switch on secure sign-in, with a password and a verification code sent to the phone.
+
+5
+00:00:45,539 --> 00:00:53,277
+Staff use their email or phone, students use their admission number, and parents can create their own account.
+
+6
+00:00:53,427 --> 00:01:00,450
+Let's go back and open the Administrator portal.
+
+7
+00:01:04,869 --> 00:01:12,668
+This is the head's dashboard. At a glance: enrolment, staff, fees collected this term, and fees still outstanding.
+
+8
+00:01:12,818 --> 00:01:20,925
+The Needs attention panel flags what matters today — gate arrivals, low stock, overdue library books and pending leave.
+
+9
+00:01:21,075 --> 00:01:27,822
+Charts show income against expenditure, enrolment by section and the attendance trend.
+
+10
+00:01:27,972 --> 00:01:34,997
+The menu on the left groups every module. On a phone it becomes a bottom bar.
+
+11
+00:01:35,147 --> 00:01:42,580
+Search finds any student, staff member or page instantly. Press Control K from anywhere.
+
+12
+00:01:42,730 --> 00:01:52,450
+And there is a dark mode for evening work.
+
+13
+00:01:58,146 --> 00:02:04,127
+Admissions tracks every applicant from application, to entrance exam, interview, offer and enrolment.
+
+14
+00:02:04,277 --> 00:02:13,315
+For an applicant who has been offered a place, you can print a formal admission letter with the fees to pay.
+
+15
+00:02:13,465 --> 00:02:23,599
+One click on Enrol creates the student, the parent record and the first fee bill together.
+
+16
+00:02:23,749 --> 00:02:28,250
+And here is the new student, ready in the system.
+
+17
+00:02:34,246 --> 00:02:41,293
+The Students page lists every learner. Filter by section, class or status, or export to Excel.
+
+18
+00:02:41,443 --> 00:02:51,817
+Let's open Kofi Mensah in JHS 2.
+
+19
+00:02:51,967 --> 00:02:59,363
+His profile brings everything together: personal details, parent contacts, medical notes, results, attendance, fees, library and conduct.
+
+20
+00:02:59,513 --> 00:03:07,610
+To add a photo, tap the camera button. You can upload a picture or take one with the camera.
+
+21
+00:03:07,760 --> 00:03:16,293
+Drag and zoom to frame the face, then save.
+
+22
+00:03:16,443 --> 00:03:24,109
+The photo now appears on his ID card, report card, gate badge and everywhere he is listed.
+
+23
+00:03:24,259 --> 00:03:33,250
+The tabs show his academic results, attendance record and fee statement.
+
+24
+00:03:38,042 --> 00:03:44,701
+Staff and HR keeps every teacher and worker, with roles, qualifications, leave requests and approvals.
+
+25
+00:03:44,851 --> 00:03:54,084
+Each staff member has a profile with their teaching load, pay and a printable staff ID card.
+
+26
+00:03:54,234 --> 00:04:00,891
+Payroll calculates salaries every month with Ghana SSNIT and PAYE deductions, ready for the bank.
+
+27
+00:04:01,041 --> 00:04:06,090
+Click any line to print a payslip.
+
+28
+00:04:10,412 --> 00:04:16,347
+Classes are organised by section: Early Years, Primary, JHS, SHS programmes and Diploma.
+
+29
+00:04:16,497 --> 00:04:24,354
+Open a class to see its subjects, the teacher for each one, and the students.
+
+30
+00:04:24,504 --> 00:04:33,130
+The timetable shows the whole week for any class, with breaks and lunch. The administrator can edit it here.
+
+31
+00:04:37,159 --> 00:04:43,095
+Teachers take the daily register in seconds. Mark everyone present with one tap…
+
+32
+00:04:43,245 --> 00:04:47,382
+…then change anyone who is late or absent.
+
+33
+00:04:47,532 --> 00:04:55,690
+Save the register, and with one more tap, parents of absent children receive a text message.
+
+34
+00:04:59,820 --> 00:05:06,837
+In the gradebook, teachers enter class scores out of thirty and exam scores out of seventy.
+
+35
+00:05:06,987 --> 00:05:16,928
+Totals, grades and positions are calculated automatically, using the GES, WASSCE or Diploma grading scale.
+
+36
+00:05:17,078 --> 00:05:24,454
+Report cards are generated for the whole class, ranked, with remarks and the BECE aggregate for JHS.
+
+37
+00:05:24,604 --> 00:05:30,650
+Open one to print it, or print the whole class at once.
+
+38
+00:05:34,494 --> 00:05:41,509
+The learning platform lets teachers post lesson notes, slides, worksheets and video links for each class.
+
+39
+00:05:41,659 --> 00:05:47,573
+Assignments show who has submitted and what still needs marking.
+
+40
+00:05:47,723 --> 00:05:52,730
+And quizzes mark themselves the moment a student submits.
+
+41
+00:05:55,554 --> 00:06:03,022
+This is the accountant's portal: money billed and collected this term, arrears and expenses.
+
+42
+00:06:03,172 --> 00:06:09,108
+Fees and Finance holds every invoice, payment, arrears list, fee structure and expense.
+
+43
+00:06:09,258 --> 00:06:17,223
+Recording a payment takes seconds — Mobile Money, cash, bank transfer or cheque.
+
+44
+00:06:17,373 --> 00:06:23,931
+Save it, and an official receipt is ready to print or share.
+
+45
+00:06:24,081 --> 00:06:31,730
+The Arrears tab lists everyone who owes, with one-tap SMS reminders to parents.
+
+46
+00:06:36,149 --> 00:06:44,968
+The canteen manager sells food from a simple point of sale — jollof, waakye, banku and tilapia, kelewele, sobolo and more.
+
+47
+00:06:45,118 --> 00:06:54,447
+Tap items to add them to the order…
+
+48
+00:06:54,597 --> 00:07:03,480
+…choose the customer and payment — cash, MoMo, or add it to the student's fee bill — and complete the sale.
+
+49
+00:07:03,630 --> 00:07:10,810
+Plan the weekly menu, track kitchen stock, and watch daily income and best sellers.
+
+50
+00:07:15,045 --> 00:07:22,093
+The store tracks uniforms, books and supplies, with low-stock alerts and purchase orders.
+
+51
+00:07:22,243 --> 00:07:29,682
+The library manages the catalogue, loans and returns, and works out overdue fines automatically.
+
+52
+00:07:29,832 --> 00:07:35,841
+Transport manages buses, routes, drivers and riders, trips and maintenance.
+
+53
+00:07:35,991 --> 00:07:41,255
+For boarding schools: halls, bed allocation and exeats.
+
+54
+00:07:41,405 --> 00:07:48,170
+And health and discipline records keep every infirmary visit and incident on file.
+
+55
+00:07:53,343 --> 00:08:02,883
+Gate Attendance shows who has arrived this morning, who is late, and who has not come in yet — for students and staff.
+
+56
+00:08:03,033 --> 00:08:07,531
+At the entrance, a tablet runs the gate kiosk.
+
+57
+00:08:07,681 --> 00:08:17,219
+It shows a QR code that changes every thirty seconds. Students and staff scan it with their phone to clock in and out.
+
+58
+00:08:17,369 --> 00:08:36,810
+Pupils without phones hold up their ID badge to the kiosk camera. Their photo appears so the security officer can confirm it is really them — and the parent gets a text.
+
+59
+00:08:39,493 --> 00:08:47,956
+This is Mr. Kwame Asante's portal: his lessons for today, work to mark, and a reminder to take the register.
+
+60
+00:08:48,106 --> 00:08:55,843
+He clocks in by scanning the gate code — or typing the six-digit code shown on the kiosk.
+
+61
+00:08:55,993 --> 00:09:02,010
+His arrival time is recorded, and late arrivals are flagged automatically.
+
+62
+00:09:05,575 --> 00:09:14,064
+Teachers can teach live, with camera, microphone, screen sharing and chat. Each class has its own code and invite link.
+
+63
+00:09:14,214 --> 00:09:26,237
+Before starting, check the camera and microphone, and choose low-data or audio-only mode for slow connections.
+
+64
+00:09:26,387 --> 00:09:33,805
+Students join with the class code or invite link. Here, Kofi has just joined from his phone.
+
+65
+00:09:33,955 --> 00:09:41,090
+Students can raise a hand, chat, and turn their camera or microphone off at any time.
+
+66
+00:09:41,240 --> 00:09:53,930
+The teacher can mute everyone, lock microphones or cameras, remove a student, and end the class for all. Attendance is saved automatically.
+
+67
+00:09:58,194 --> 00:10:07,510
+Mrs. Akosua Mensah has two children in the school. Her portal shows each child's attendance, average and fees owing.
+
+68
+00:10:07,660 --> 00:10:14,772
+She can see their results for every term and download the report card.
+
+69
+00:10:14,922 --> 00:10:33,700
+And she can pay school fees with Mobile Money, right from her phone.
+
+70
+00:10:33,850 --> 00:10:40,290
+She can also check the school bus route and stops, and the canteen menu.
+
+71
+00:10:43,465 --> 00:10:50,160
+Kofi's own portal shows today's lessons, homework due, quizzes and his results.
+
+72
+00:10:50,310 --> 00:11:16,045
+He can take a quiz on his phone, with a timer, and see his score straight away.
+
+73
+00:11:16,195 --> 00:11:21,610
+He can browse the library catalogue and check his borrowed books.
+
+74
+00:11:24,786 --> 00:11:33,462
+Every staff member gets a portal built for their job. The librarian sees overdue books and fines.
+
+75
+00:11:33,612 --> 00:11:39,207
+The storekeeper sees stock value and the reorder list.
+
+76
+00:11:39,357 --> 00:11:44,866
+The transport officer sees every route, bus and rider.
+
+77
+00:11:45,016 --> 00:11:52,450
+And support staff — drivers, security, cleaners and cooks — can clock in and read school notices.
+
+78
+00:11:57,520 --> 00:12:03,823
+The Super Admin sets up the system for each school: name, logo and colours.
+
+79
+00:12:03,973 --> 00:12:10,950
+Choose a colour theme, and the whole app changes instantly.
+
+80
+00:12:11,100 --> 00:12:18,119
+Modules a school does not use — like hostel or canteen — can be switched off.
+
+81
+00:12:18,269 --> 00:12:24,204
+Login and security controls password rules, verification codes, parent sign-up and account lockout.
+
+82
+00:12:24,354 --> 00:12:28,850
+And the Users tab approves new parent accounts and resets passwords.
+
+83
+00:12:34,415 --> 00:12:40,615
+EduNexa keeps working even when the internet goes off.
+
+84
+00:12:40,765 --> 00:12:51,150
+The orange bar shows we are offline — but every page still opens, and all your work is saved on the device.
+
+85
+00:12:51,300 --> 00:13:01,729
+Text messages sent while offline wait in a queue…
+
+86
+00:13:01,879 --> 00:13:07,250
+…and go out automatically as soon as the connection returns.
+
+87
+00:13:10,710 --> 00:13:17,008
+On a phone, EduNexa looks and feels like an app, with a bottom menu.
+
+88
+00:13:17,158 --> 00:13:24,175
+Install it: on iPhone, Safari, Share, Add to Home Screen. On Android, Chrome menu, Install app.
+
+89
+00:13:24,325 --> 00:13:30,810
+Then it opens straight from the home screen — even without data.
