@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Search, Moon, Sun, Bell, LogOut, Menu, X, ChevronsLeft, ChevronsRight, Repeat, ChevronDown } from 'lucide-react';
+import { Search, Moon, Sun, Bell, LogOut, Menu, X, ChevronsLeft, ChevronsRight, Repeat, ChevronDown, Loader2 } from 'lucide-react';
 import { useDB, useSession } from '../../data/store';
 import { useCurrentUser, usePortalStudent } from '../../data/selectors';
 import { navFor, navItem, MOBILE_TABS, ROLES } from '../../lib/permissions';
 import { Avatar, cx, toast } from '../ui';
 import CommandPalette from './CommandPalette';
+import { OfflineBanner, SlowChip } from '../NetworkBanner';
 import Logo from './Logo';
+import { userPhotoKey } from '../../data/photos';
 
 function SidebarNav({ role, collapsed, onNavigate }) {
   const modules = useDB((s) => s.settings.modules);
@@ -164,6 +166,7 @@ export default function AppShell() {
       )}
 
       <div className={cx('transition-all', sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72')}>
+        <OfflineBanner />
         {/* Topbar */}
         <header className="no-print sticky top-0 z-20 border-b border-slate-200/70 bg-white/85 backdrop-blur-xl dark:border-white/5 dark:bg-navy-950/85">
           <div className="flex h-16 items-center gap-3 px-4 sm:px-6 lg:px-8">
@@ -182,6 +185,7 @@ export default function AppShell() {
               <kbd className="ml-auto rounded-md border border-slate-200 bg-white px-1.5 text-[10px] font-semibold text-slate-500 dark:border-white/10 dark:bg-navy-900">Ctrl K</kbd>
             </button>
             <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+              <SlowChip />
               <ChildSwitcher />
               <button onClick={() => setPaletteOpen(true)} className="rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10 md:hidden" aria-label="Search">
                 <Search className="h-5 w-5" />
@@ -195,7 +199,7 @@ export default function AppShell() {
               </button>
               <div className="relative">
                 <button onClick={() => setMenuOpen((o) => !o)} className="flex items-center gap-2.5 rounded-xl p-1 pr-2 hover:bg-slate-100 dark:hover:bg-white/10">
-                  <Avatar name={user.name} size="sm" />
+                  <Avatar name={user.name} photo={userPhotoKey(user)} size="sm" />
                   <div className="hidden text-left sm:block">
                     <p className="max-w-[140px] truncate text-sm font-semibold leading-tight text-slate-800 dark:text-white">{user.name}</p>
                     <p className="text-[11px] leading-tight text-slate-500">{ROLES[user.role].label}</p>
@@ -226,7 +230,9 @@ export default function AppShell() {
         </header>
 
         <main className="mx-auto max-w-[1500px] animate-fade-in px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-12" key={loc.pathname}>
-          <Outlet />
+          <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-brand-600" /></div>}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
 

@@ -10,9 +10,11 @@ import { Button, Card, CardHeader, Badge, Avatar, Tabs, KeyValue, FormModal, Emp
 import PrintView, { Paper } from '../../components/PrintView';
 import { SchoolLogo } from '../../components/layout/Logo';
 import { QRCode } from '../../components/QR';
+import { EditableAvatar, Portrait } from '../../components/PhotoEditor';
 import { badgeToken } from '../../lib/gate';
 import { studentFields } from './Students';
 import { StudentStatement } from '../finance/shared';
+import { photoKey } from '../../data/photos';
 
 export function ResultsTable({ result, section }) {
   const L = useLookups();
@@ -69,9 +71,7 @@ function IdCardDoc({ student }) {
           </div>
         </div>
         <div className="flex gap-4 bg-white p-4">
-          <div className="flex h-28 w-24 items-center justify-center rounded-lg bg-slate-100">
-            <Avatar name={fullName(student)} size="xl" />
-          </div>
+          <Portrait pkey={photoKey('Student', student.id)} name={fullName(student)} className="h-28 w-24 shrink-0" />
           <div className="text-xs leading-relaxed">
             <p className="text-sm font-extrabold text-slate-900">{fullName(student)}</p>
             <p><span className="text-slate-400">ID:</span> <b>{student.admissionNo}</b></p>
@@ -140,7 +140,7 @@ export default function StudentProfile() {
           <div className="h-full w-full opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '22px 22px' }} />
         </div>
         <div className="flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-end sm:px-8">
-          <Avatar name={fullName(student)} size="xl" className="-mt-10 ring-4" />
+          <EditableAvatar pkey={photoKey('Student', student.id)} name={fullName(student)} canEdit={['admin', 'superadmin'].includes(user.role)} className="-mt-10" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">{fullName(student)}</h1>
@@ -226,7 +226,7 @@ export default function StudentProfile() {
                   <div className="p-3">
                     {siblings.map((s) => (
                       <button key={s.id} onClick={() => navigate(`/students/${s.id}`)} className="flex w-full items-center gap-3 rounded-xl p-2 text-left hover:bg-slate-50 dark:hover:bg-white/5">
-                        <Avatar name={fullName(s)} size="sm" />
+                        <Avatar name={fullName(s)} photo={photoKey('Student', s.id)} size="sm" />
                         <div><p className="text-sm font-semibold">{fullName(s)}</p><p className="text-xs text-slate-500">{L.className(s.classId)}</p></div>
                       </button>
                     ))}

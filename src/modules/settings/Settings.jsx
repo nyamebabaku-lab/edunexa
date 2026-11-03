@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Save, School, CalendarRange, Award, ShieldCheck, Database, Smartphone, RotateCcw, Download, Moon, Check, Minus, Palette, Blocks,
-  LockKeyhole, DoorOpen, Users, Upload, Trash2, Globe, UserPlus, KeyRound, Ban, CircleCheck, Video,
+  LockKeyhole, DoorOpen, Users, Upload, Trash2, Globe, UserPlus, KeyRound, Ban, CircleCheck, Video, Wifi, WifiOff, HardDrive, MonitorDown,
 } from 'lucide-react';
 import { useDB, useSession } from '../../data/store';
 import { useCurrentUser } from '../../data/selectors';
@@ -12,6 +12,9 @@ import { PRESETS, applyTheme, fileToLogo, themePalettes } from '../../lib/theme'
 import { hashPassword, newUserRecord, portalRoleForStaff } from '../../lib/auth';
 import { Card, CardHeader, PageHeader, Tabs, Button, Field, Input, Select, Badge, Avatar, DataTable, Modal, IconButton, toast, confirmDialog, cx } from '../../components/ui';
 import { LogoMark } from '../../components/layout/Logo';
+import { usePhotos, clearPhotos } from '../../data/photos';
+import { useInstall, useNetwork, storageEstimate } from '../../data/offline';
+import { userPhotoKey } from '../../data/photos';
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
@@ -219,7 +222,7 @@ function UsersTab() {
           </>
         }
         columns={[
-          { key: 'name', label: 'Account', render: (u) => <div className="flex items-center gap-3"><Avatar name={u.name} size="sm" /><div><p className="font-semibold">{u.name}</p><p className="text-xs text-slate-500">{u.email || u.username || u.phone || '—'}</p></div></div> },
+          { key: 'name', label: 'Account', render: (u) => <div className="flex items-center gap-3"><Avatar name={u.name} photo={userPhotoKey(u)} size="sm" /><div><p className="font-semibold">{u.name}</p><p className="text-xs text-slate-500">{u.email || u.username || u.phone || '—'}</p></div></div> },
           { key: 'role', label: 'Role', render: (u) => <Badge tone={u.role === 'superadmin' ? 'red' : u.role === 'admin' ? 'blue' : 'slate'}>{ROLES[u.role]?.label || u.role}</Badge> },
           { key: 'phone', label: 'Phone', hideOnMobile: true, render: (u) => u.phone || '—' },
           { key: 'lastLogin', label: 'Last sign-in', hideOnMobile: true, render: (u) => (u.lastLogin ? fmtDateTime(u.lastLogin) : 'Never') },
@@ -256,6 +259,51 @@ function UsersTab() {
   );
 }
 
+function OfflineCard() {
+  const net = useNetwork();
+  const { prompt, installed, persisted } = useInstall();
+  const photos = usePhotos((p) => Object.keys(p.map).length);
+  const queued = useDB((d) => d.smsLog.filter((m) => m.status === 'Queued').length);
+  const [est, setEst] = useState(null);
+  useEffect(() => {
+    storageEstimate().then(setEst);
+  }, [photos]);
+  const mb = (b) => `${(b / 1048576).toFixed(1)} MB`;
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader title="Offline & slow connections" icon={net.online ? Wifi : WifiOff} subtitle={net.online ? `Online${net.effectiveType !== 'unknown' ? ` · ${net.effectiveType}` : ''}${net.slow ? ' · slow' : ''}` : 'Offline — working from this device'} />
+      <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-2xl bg-slate-50 p-4 dark:bg-white/5">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase text-slate-500"><HardDrive className="h-3.5 w-3.5" /> Storage used</p>
+          <p className="mt-1 text-xl font-extrabold">{est ? mb(est.usage) : '—'}</p>
+          <p className="text-xs text-slate-500">{est?.quota ? `of ${mb(est.quota)} available` : 'on this device'}</p>
+        </div>
+        <div className="rounded-2xl bg-slate-50 p-4 dark:bg-white/5">
+          <p className="text-xs font-semibold uppercase text-slate-500">Offline data protected</p>
+          <p className="mt-1 text-xl font-extrabold">{persisted ? 'Yes' : persisted === false ? 'Not yet' : '—'}</p>
+          <p className="text-xs text-slate-500">{persisted ? "The browser won't clear it when space runs low" : 'Install the app to protect offline data'}</p>
+        </div>
+        <div className="rounded-2xl bg-slate-50 p-4 dark:bg-white/5">
+          <p className="text-xs font-semibold uppercase text-slate-500">Photos stored</p>
+          <p className="mt-1 text-xl font-extrabold">{photos}</p>
+          <p className="text-xs text-slate-500">≈20 KB each, compressed</p>
+        </div>
+        <div className="rounded-2xl bg-slate-50 p-4 dark:bg-white/5">
+          <p className="text-xs font-semibold uppercase text-slate-500">Waiting to send</p>
+          <p className="mt-1 text-xl font-extrabold">{queued}</p>
+          <p className="text-xs text-slate-500">Text messages queued while offline</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 p-5 text-sm dark:border-white/5">
+        {installed ? <Badge tone="green" dot>Installed as an app</Badge> : prompt ? (
+          <Button icon={MonitorDown} onClick={async () => { prompt.prompt(); const r = await prompt.userChoice; if (r.outcome === 'accepted') useInstall.setState({ prompt: null, installed: true }); }}>Install app</Button>
+        ) : <span className="text-slate-500">To install: iPhone Safari → Share → Add to Home Screen · Android Chrome → ⋮ → Install app</span>}
+        <span className="text-xs text-slate-500">After the first visit the whole app opens without internet. Live classes and delivering texts need a connection.</span>
+      </div>
+    </Card>
+  );
+}
+
 // ---------------------------------------------------------------- Page
 export default function Settings() {
   const db = useDB();
@@ -273,7 +321,7 @@ export default function Settings() {
     toast.success('Settings saved', 'Applied for everyone on this device');
   };
   const backup = () => {
-    const data = Object.fromEntries(Object.entries(useDB.getState()).filter(([, v]) => typeof v !== 'function'));
+    const data = { ...Object.fromEntries(Object.entries(useDB.getState()).filter(([, v]) => typeof v !== 'function')), photos: usePhotos.getState().map };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -281,8 +329,9 @@ export default function Settings() {
     a.click();
   };
   const reset = async () => {
-    if (await confirmDialog('Reset all demo data?', 'Every change made on this device (students, payments, scores, branding…) will be replaced with fresh sample data.', { confirmLabel: 'Reset data' })) {
+    if (await confirmDialog('Reset all demo data?', 'Every change made on this device (students, payments, scores, photos, branding…) will be replaced with fresh sample data.', { confirmLabel: 'Reset data' })) {
       db.resetDemo();
+      await clearPhotos();
       setS(clone(useDB.getState().settings));
       toast.success('Demo data restored');
     }
@@ -485,6 +534,7 @@ export default function Settings() {
 
       {tab === 'data' && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <OfflineCard />
           <Card>
             <CardHeader title="Data" icon={Database} subtitle="Prototype mode: data is stored in this browser" />
             <div className="space-y-3 p-5">

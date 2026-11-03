@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
   Mic, MicOff, Video, VideoOff, MonitorUp, MonitorX, Hand, MessageSquare, Users, PhoneOff, Copy, Send, X, Crown, Radio,
-  Loader2, Clock, CircleSlash, LogOut, ShieldOff, Volume2, Link2, ArrowLeft,
+  Loader2, Clock, CircleSlash, LogOut, ShieldOff, Volume2, Link2, ArrowLeft, Gauge, WifiOff, BookOpen,
 } from 'lucide-react';
 import { useDB } from '../../data/store';
 import { useCurrentUser, useLookups } from '../../data/selectors';
@@ -13,6 +13,8 @@ import { Avatar, Button, toast, cx } from '../../components/ui';
 import { SchoolLogo } from '../../components/layout/Logo';
 import { useLiveRoom, openMedia, audioCtx, blackVideoTrack } from './useLiveRoom';
 import JitsiRoom from './JitsiRoom';
+import { useNetwork, networkInfo } from '../../data/offline';
+import { photoKey } from '../../data/photos';
 
 // ---------- small pieces ----------
 function useSpeaking(stream, enabled) {
@@ -60,9 +62,9 @@ function VideoEl({ stream, muted, mirror, className }) {
   return <video ref={ref} autoPlay playsInline muted={muted} className={cx('h-full w-full', mirror && '-scale-x-100', className)} />;
 }
 
-function Tile({ p, stream, self, big }) {
+function Tile({ p, stream, self, big, audioOnly }) {
   const speaking = useSpeaking(stream, p.mic);
-  const showVideo = stream && (p.cam || p.screen);
+  const showVideo = stream && (p.cam || p.screen) && !(audioOnly && !self) && p.bw !== 'audio';
   return (
     <div className={cx('relative overflow-hidden rounded-2xl bg-navy-800 ring-2 transition', speaking ? 'ring-emerald-400' : 'ring-transparent', big ? 'h-full' : 'aspect-video')}>
       {showVideo ? (
@@ -71,7 +73,7 @@ function Tile({ p, stream, self, big }) {
         <>
           {stream && !self && <VideoEl stream={stream} muted={false} className="hidden" />}
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-navy-800 to-navy-950">
-            <Avatar name={p.name} size={big ? 'xl' : 'lg'} />
+            <Avatar name={p.name} photo={photoKey(p.role === 'student' ? 'Student' : 'Staff', p.personId)} size={big ? 'xl' : 'lg'} />
           </div>
         </>
       )}
@@ -142,6 +144,7 @@ function Room({ code, session, isHost, me, media, initial, onExit }) {
   }, [isHost, session]);
 
   const room = useLiveRoom({ code, isHost, me, stream: media.stream, initial, settings, onAttendance });
+  const net = useNetwork();
 
   useEffect(() => {
     if (isHost && session && room.status === 'live') db.update('liveSessions', session.id, { status: 'Live', startedAt: new Date().toISOString() });
@@ -165,6 +168,9 @@ function Room({ code, session, isHost, me, media, initial, onExit }) {
   };
 
   const status = room.status;
+  if (!net.online && status !== 'ended' && status !== 'ended-host') {
+    return <StatusScreen icon={WifiOff} title="You're offline" text="Live classes need an internet connection. You'll rejoin automatically when it's back. Meanwhile, lesson notes and assignments still work offline."><Button variant="secondary" icon={BookOpen} onClick={() => { room.leave('left'); window.location.hash = '#/lms'; }}>Open lessons</Button></StatusScreen>;
+  }
   if (status === 'ended') return <StatusScreen icon={CircleSlash} title="The class has ended" text="Your teacher has closed this live session."><Button onClick={onExit}>Back to live classes</Button></StatusScreen>;
   if (status === 'ended-host') return <StatusScreen icon={CircleSlash} title="Class ended" text={`Attendance has been saved${session ? ` for ${session.title}` : ''}.`}><Button onClick={onExit}>Back to live classes</Button></StatusScreen>;
   if (status === 'left') return <StatusScreen icon={LogOut} title="You left the class"><Button onClick={() => window.location.reload()}>Rejoin</Button><Button variant="secondary" onClick={onExit}>Back to live classes</Button></StatusScreen>;
@@ -198,6 +204,7 @@ function Room({ code, session, isHost, me, media, initial, onExit }) {
     if (r === 'no-device') toast.error('No microphone available', 'Allow microphone access in your browser, then rejoin.');
   };
   const doCam = async () => {
+    if (!room.cam && room.bw === 'audio') return toast.info('Audio-only mode is on', 'Switch data mode to Normal or Low to use video');
     const r = await room.toggleCam();
     if (r === false) toast.info(room.screen ? 'Stop presenting first' : 'Camera locked', room.screen ? undefined : 'Your teacher has turned off student cameras.');
     if (r === 'no-device') toast.error('No camera available', 'Allow camera access in your browser.');
@@ -225,13 +232,13 @@ function Room({ code, session, isHost, me, media, initial, onExit }) {
         <main className={cx('min-h-0 flex-1 p-3', spotlight ? 'flex flex-col gap-3 lg:flex-row' : 'overflow-y-auto')}>
           {spotlight && (
             <div className="min-h-0 flex-1">
-              <Tile p={spotlight} stream={streamOf(spotlight)} self={spotlight.id === room.myId} big />
+              <Tile p={spotlight} stream={streamOf(spotlight)} self={spotlight.id === room.myId} big audioOnly={room.bw === 'audio'} />
             </div>
           )}
           <div className={cx(spotlight ? 'flex shrink-0 gap-3 overflow-auto lg:w-72 lg:flex-col' : cx('mx-auto grid max-w-6xl content-center gap-3', cols, 'min-h-full'))}>
             {rest.map((p) => (
               <div key={p.id} className={spotlight ? 'w-44 shrink-0 lg:w-full' : ''}>
-                <Tile p={p} stream={streamOf(p)} self={p.id === room.myId} />
+                <Tile p={p} stream={streamOf(p)} self={p.id === room.myId} audioOnly={room.bw === 'audio'} />
               </div>
             ))}
           </div>
@@ -278,7 +285,7 @@ function Room({ code, session, isHost, me, media, initial, onExit }) {
                 )}
                 {[...everyone].sort((a, b) => b.hand - a.hand || b.host - a.host).map((p) => (
                   <div key={p.id} className="flex items-center gap-2 rounded-xl px-2 py-2 hover:bg-white/5">
-                    <Avatar name={p.name} size="sm" />
+                    <Avatar name={p.name} photo={photoKey(p.role === 'student' ? 'Student' : 'Staff', p.personId)} size="sm" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{p.name}{p.id === room.myId ? ' (you)' : ''}</p>
                       <p className="text-[11px] text-slate-400">{p.host ? 'Teacher · host' : p.role === 'teacher' ? 'Teacher' : 'Student'}</p>
@@ -307,6 +314,7 @@ function Room({ code, session, isHost, me, media, initial, onExit }) {
         <CtrlButton on={room.cam} onClick={doCam} icon={Video} offIcon={VideoOff} label={room.cam ? 'Stop video' : camLocked ? 'Locked' : 'Start video'} />
         {!isStudent && <CtrlButton on={room.screen ? true : undefined} onClick={doScreen} icon={room.screen ? MonitorX : MonitorUp} label={room.screen ? 'Stop sharing' : 'Share screen'} />}
         {!isHost && <CtrlButton on={room.hand ? true : undefined} onClick={room.toggleHand} icon={Hand} label={room.hand ? 'Lower hand' : 'Raise hand'} />}
+        <CtrlButton on={room.bw === 'normal' ? undefined : true} onClick={() => { const next = { normal: 'low', low: 'audio', audio: 'normal' }[room.bw]; room.setBw(next); toast.info({ normal: 'Normal video', low: 'Low-data video', audio: 'Audio only' }[next], { normal: 'Best quality', low: 'Smaller video, uses about a quarter of the data', audio: 'No video sent or received; uses the least data' }[next]); }} icon={Gauge} label={{ normal: 'Data: normal', low: 'Data: low', audio: 'Audio only' }[room.bw]} />
         <CtrlButton onClick={() => setPanel(panel === 'chat' ? null : 'chat')} icon={MessageSquare} label="Chat" badge={panel === 'chat' ? 0 : Math.max(0, room.chat.length - seen)} />
         <CtrlButton onClick={() => setPanel(panel === 'people' ? null : 'people')} icon={Users} label={`People ${everyone.length}`} badge={isHost ? hands : 0} />
         <CtrlButton danger onClick={end} icon={PhoneOff} label={isHost ? 'End class' : 'Leave'} />
@@ -332,7 +340,9 @@ export default function LiveRoom() {
   const startMuted = me.role === 'student' && db.settings.live.studentsStartMuted;
 
   const [media, setMedia] = useState(null);
-  const [pre, setPre] = useState({ mic: !startMuted, cam: true });
+  const net0 = networkInfo();
+  const [pre, setPre] = useState({ mic: !startMuted, cam: !net0.saveData, bw: net0.saveData ? 'audio' : net0.slow ? 'low' : 'normal' });
+  const net = useNetwork();
   const [joined, setJoined] = useState(false);
   const exit = () => navigate('/live');
 
@@ -344,7 +354,7 @@ export default function LiveRoom() {
       opened = m;
       if (!alive) return m.stream.getTracks().forEach((t) => t.stop());
       setMedia(m);
-      setPre((p) => ({ mic: p.mic && m.hasMic, cam: p.cam && m.hasCam }));
+      setPre((p) => ({ ...p, mic: p.mic && m.hasMic, cam: p.cam && m.hasCam }));
     });
     return () => {
       alive = false;
@@ -376,7 +386,7 @@ export default function LiveRoom() {
       <div className="mx-auto grid w-full max-w-5xl flex-1 items-center gap-8 px-5 pb-10 lg:grid-cols-[1.3fr_1fr]">
         <div className="relative aspect-video overflow-hidden rounded-3xl bg-navy-800 ring-1 ring-white/10">
           {media && pre.cam ? <VideoEl stream={media.stream} muted mirror className="object-cover" /> : (
-            <div className="flex h-full items-center justify-center">{media ? <Avatar name={myName} size="xl" /> : <Loader2 className="h-8 w-8 animate-spin text-slate-400" />}</div>
+            <div className="flex h-full items-center justify-center">{media ? <Avatar name={myName} photo={photoKey(me.personType, me.personId)} size="xl" /> : <Loader2 className="h-8 w-8 animate-spin text-slate-400" />}</div>
           )}
           <div className="absolute inset-x-0 bottom-4 flex justify-center gap-3">
             <button onClick={() => (media?.hasMic ? setPre({ ...pre, mic: !pre.mic }) : toast.error('No microphone available'))} className={cx('flex h-12 w-12 items-center justify-center rounded-full', pre.mic ? 'bg-white/20' : 'bg-accent-600')} aria-label="Toggle microphone">{pre.mic ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}</button>
@@ -389,8 +399,20 @@ export default function LiveRoom() {
           {session && <p className="mt-2 text-slate-400">{L.className(session.classId)} · {L.subjectName(session.subjectId)} · {L.staffName(session.teacherId)}</p>}
           <p className="mt-1 font-mono text-sm text-slate-500">Class code {code}</p>
           {media?.error && <p className="mt-4 rounded-2xl bg-amber-500/15 p-3 text-sm text-amber-200">{media.error}</p>}
+          {!net.online && <p className="mt-4 flex items-center gap-2 rounded-2xl bg-amber-500/15 p-3 text-sm text-amber-200"><WifiOff className="h-4 w-4 shrink-0" /> You're offline. Connect to the internet to join the live class.</p>}
+          <div className="mt-5">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400"><Gauge className="h-3.5 w-3.5" /> Data use {net.slow && <span className="normal-case text-amber-300">· slow connection detected</span>}</p>
+            <div className="grid grid-cols-3 gap-2">
+              {[['normal', 'Normal', 'Best video'], ['low', 'Low data', '~¼ the data'], ['audio', 'Audio only', 'Least data']].map(([k, label, sub]) => (
+                <button key={k} onClick={() => setPre({ ...pre, bw: k, cam: k === 'audio' ? false : pre.cam })} className={cx('rounded-xl border px-2 py-2 text-left text-xs transition', pre.bw === k ? 'border-brand-400 bg-brand-500/20' : 'border-white/10 hover:border-white/30')}>
+                  <p className="font-bold text-white">{label}</p>
+                  <p className="text-slate-400">{sub}</p>
+                </button>
+              ))}
+            </div>
+          </div>
           {startMuted && <p className="mt-4 text-sm text-slate-400">Students join with their microphone off. Unmute when your teacher asks you to speak.</p>}
-          <Button size="lg" className="mt-6 w-full" icon={isHost ? Radio : Video} disabled={!media} onClick={() => {
+          <Button size="lg" className="mt-6 w-full" icon={isHost ? Radio : Video} disabled={!media || !net.online} onClick={() => {
             // Joining with the camera off releases it (light goes off) and sends black frames instead.
             if (!pre.cam) {
               media.stream.getVideoTracks().forEach((t) => {

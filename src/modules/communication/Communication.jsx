@@ -5,6 +5,7 @@ import { useCurrentUser, useLookups, TODAY } from '../../data/selectors';
 import { fmtDate, fmtDateTime, nowISO } from '../../lib/format';
 import { ROLES } from '../../lib/permissions';
 import { Card, PageHeader, Tabs, Badge, Avatar, Button, Modal, Field, Select, Input, Textarea, EmptyState, FormModal, DataTable, toast, cx } from '../../components/ui';
+import { userPhotoKey } from '../../data/photos';
 
 const AUDIENCE_FOR = { admin: null, teacher: ['All', 'Staff'], accountant: ['All', 'Staff'], librarian: ['All', 'Staff'], storekeeper: ['All', 'Staff'], transport: ['All', 'Staff'], parent: ['All', 'Parents'], student: ['All', 'Students'] };
 
@@ -74,7 +75,7 @@ export default function Communication() {
                 const unread = tab === 'inbox' && !m.read;
                 return (
                   <button key={m.id} onClick={() => open(m)} className={cx('flex w-full items-start gap-4 px-5 py-4 text-left transition hover:bg-slate-50 dark:hover:bg-white/[.03]', unread && 'bg-brand-50/50 dark:bg-brand-500/5')}>
-                    <Avatar name={userName(other)} size="sm" />
+                    <Avatar name={userName(other)} photo={userPhotoKey(db.users.find((u) => u.id === other))} size="sm" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <p className={cx('truncate text-sm', unread ? 'font-bold text-slate-900 dark:text-white' : 'font-semibold text-slate-700 dark:text-slate-200')}>{userName(other)}</p>

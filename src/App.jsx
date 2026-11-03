@@ -1,45 +1,58 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ShieldAlert } from 'lucide-react';
 import { useDB, useSession } from './data/store';
 import { useCurrentUser } from './data/selectors';
 import { canAccess } from './lib/permissions';
 import { Toaster, EmptyState, Card } from './components/ui';
+import { Loader2 } from 'lucide-react';
 import AppShell from './components/layout/AppShell';
 import Login from './modules/auth/Login';
-import Dashboard from './modules/dashboard/Dashboard';
-import Admissions from './modules/admissions/Admissions';
-import Students from './modules/students/Students';
-import StudentProfile from './modules/students/StudentProfile';
-import Parents from './modules/parents/Parents';
-import Staff from './modules/staff/Staff';
-import StaffProfile from './modules/staff/StaffProfile';
-import Classes from './modules/classes/Classes';
-import Timetable from './modules/timetable/Timetable';
-import Attendance from './modules/attendance/Attendance';
-import Gradebook from './modules/academics/Gradebook';
-import ReportCards from './modules/academics/ReportCards';
-import LMS from './modules/lms/LMS';
-import { MyResults, MyAttendance, MyFees } from './modules/portal/Portal';
-import Finance from './modules/finance/Finance';
-import Payroll from './modules/finance/Payroll';
-import Transport from './modules/transport/Transport';
-import LibraryPage from './modules/library/Library';
-import Store from './modules/store/Store';
-import Canteen from './modules/canteen/Canteen';
-import Hostel from './modules/hostel/Hostel';
-import Welfare from './modules/welfare/Welfare';
-import Communication from './modules/communication/Communication';
-import CalendarPage from './modules/calendar/Calendar';
-import Reports from './modules/reports/Reports';
-import Settings from './modules/settings/Settings';
-import ClockIn from './modules/gate/ClockIn';
-import Gate from './modules/gate/Gate';
-import GateKiosk from './modules/gate/GateKiosk';
-import LiveClasses from './modules/live/LiveClasses';
-import LiveRoom from './modules/live/LiveRoom';
 import { applyTheme, applyBranding } from './lib/theme';
 import { setCurrencySymbol } from './lib/format';
+
+// Pages load on demand so the first visit is light on slow connections; the service worker caches them all for offline use.
+const Dashboard = lazy(() => import('./modules/dashboard/Dashboard'));
+const Admissions = lazy(() => import('./modules/admissions/Admissions'));
+const Students = lazy(() => import('./modules/students/Students'));
+const StudentProfile = lazy(() => import('./modules/students/StudentProfile'));
+const Parents = lazy(() => import('./modules/parents/Parents'));
+const Staff = lazy(() => import('./modules/staff/Staff'));
+const StaffProfile = lazy(() => import('./modules/staff/StaffProfile'));
+const Classes = lazy(() => import('./modules/classes/Classes'));
+const Timetable = lazy(() => import('./modules/timetable/Timetable'));
+const Attendance = lazy(() => import('./modules/attendance/Attendance'));
+const Gradebook = lazy(() => import('./modules/academics/Gradebook'));
+const ReportCards = lazy(() => import('./modules/academics/ReportCards'));
+const LMS = lazy(() => import('./modules/lms/LMS'));
+const MyResults = lazy(() => import('./modules/portal/Portal').then((m) => ({ default: m.MyResults })));
+const MyAttendance = lazy(() => import('./modules/portal/Portal').then((m) => ({ default: m.MyAttendance })));
+const MyFees = lazy(() => import('./modules/portal/Portal').then((m) => ({ default: m.MyFees })));
+const Finance = lazy(() => import('./modules/finance/Finance'));
+const Payroll = lazy(() => import('./modules/finance/Payroll'));
+const Transport = lazy(() => import('./modules/transport/Transport'));
+const LibraryPage = lazy(() => import('./modules/library/Library'));
+const Store = lazy(() => import('./modules/store/Store'));
+const Canteen = lazy(() => import('./modules/canteen/Canteen'));
+const Hostel = lazy(() => import('./modules/hostel/Hostel'));
+const Welfare = lazy(() => import('./modules/welfare/Welfare'));
+const Communication = lazy(() => import('./modules/communication/Communication'));
+const CalendarPage = lazy(() => import('./modules/calendar/Calendar'));
+const Reports = lazy(() => import('./modules/reports/Reports'));
+const Settings = lazy(() => import('./modules/settings/Settings'));
+const ClockIn = lazy(() => import('./modules/gate/ClockIn'));
+const Gate = lazy(() => import('./modules/gate/Gate'));
+const GateKiosk = lazy(() => import('./modules/gate/GateKiosk'));
+const LiveClasses = lazy(() => import('./modules/live/LiveClasses'));
+const LiveRoom = lazy(() => import('./modules/live/LiveRoom'));
+
+function PageLoader() {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <Loader2 className="h-7 w-7 animate-spin text-brand-600" />
+    </div>
+  );
+}
 
 function Guard({ k, children }) {
   const user = useCurrentUser();
@@ -76,6 +89,7 @@ export default function App() {
   return (
     <HashRouter>
       <Toaster />
+      <Suspense fallback={<PageLoader />}>
       {!user ? (
         <Routes>
           <Route path="*" element={<Login />} />
@@ -120,6 +134,7 @@ export default function App() {
           </Route>
         </Routes>
       )}
+      </Suspense>
     </HashRouter>
   );
 }

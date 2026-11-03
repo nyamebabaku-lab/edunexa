@@ -16,6 +16,7 @@ import { Card, CardHeader, StatCard, Badge, Avatar, Button, Progress, EmptyState
 import { useChartTheme, axisProps, ChartTooltip, Legend } from '../../components/charts';
 import { ingredientLevel, useCanteenIncome, CAT_ICON } from '../canteen/Canteen';
 import { sessionStatus } from '../../lib/live';
+import { photoKey } from '../../data/photos';
 
 function Hello({ name, sub, display }) {
   const h = new Date().getHours();
@@ -481,7 +482,7 @@ function ChildCard({ student }) {
       <div className="relative bg-gradient-to-br from-brand-600 to-brand-800 p-5 text-white">
         <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-white/10" />
         <div className="relative flex items-center gap-4">
-          <Avatar name={fullName(student)} size="lg" className="ring-white/30" />
+          <Avatar name={fullName(student)} photo={photoKey('Student', student.id)} size="lg" className="ring-white/30" />
           <div>
             <p className="text-lg font-bold">{fullName(student)}</p>
             <p className="text-sm text-brand-100">

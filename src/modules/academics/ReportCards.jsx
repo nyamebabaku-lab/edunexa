@@ -7,6 +7,8 @@ import { gradeTone, SCALES, SECTION_SCALE } from '../../lib/grading';
 import { classResults, autoRemark } from '../../lib/results';
 import { Card, PageHeader, Select, Button, Avatar, Badge, DataTable } from '../../components/ui';
 import PrintView, { Paper, Letterhead } from '../../components/PrintView';
+import { Portrait } from '../../components/PhotoEditor';
+import { photoKey } from '../../data/photos';
 
 export function ReportCardDoc({ row, cls, termId, total }) {
   const db = useDB();
@@ -20,7 +22,9 @@ export function ReportCardDoc({ row, cls, termId, total }) {
   return (
     <Paper>
       <Letterhead title={`${cls.section === 'Diploma' ? 'Semester' : 'Terminal'} Report`} right={<p className="mt-2 text-xs text-slate-500">{term?.name}</p>} />
-      <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm sm:grid-cols-3">
+      <div className="flex gap-5">
+      <Portrait pkey={photoKey('Student', s.id)} name={fullName(s)} className="h-28 w-24 shrink-0 border border-slate-200" />
+      <div className="grid flex-1 grid-cols-2 content-start gap-x-8 gap-y-1 text-sm sm:grid-cols-3">
         <p>Name: <b>{fullName(s)}</b></p>
         <p>Adm. No: <b>{s.admissionNo}</b></p>
         <p>Class: <b>{cls.name}</b></p>
@@ -30,6 +34,7 @@ export function ReportCardDoc({ row, cls, termId, total }) {
         {cls.programme && <p>Programme: <b>{cls.programme}</b></p>}
         <p>House: <b>{s.house || '—'}</b></p>
         <p>Vacation: <b>{fmtDate(term?.end)}</b></p>
+      </div>
       </div>
       <table className="mt-5 w-full border-collapse text-[13px]">
         <thead>
@@ -124,7 +129,7 @@ export default function ReportCards() {
         onRowClick={(r) => setPrint(r.student.id)}
         columns={[
           { key: 'position', label: 'Pos.', render: (r) => <span className="font-extrabold text-brand-700 dark:text-brand-300">{ordinal(r.position)}</span> },
-          { key: 'name', label: 'Student', sort: (r) => r.student.lastName, render: (r) => <div className="flex items-center gap-3"><Avatar name={fullName(r.student)} size="sm" /><span className="font-semibold">{fullName(r.student)}</span></div> },
+          { key: 'name', label: 'Student', sort: (r) => r.student.lastName, render: (r) => <div className="flex items-center gap-3"><Avatar name={fullName(r.student)} photo={photoKey('Student', r.student.id)} size="sm" /><span className="font-semibold">{fullName(r.student)}</span></div> },
           { key: 'total', label: 'Total', hideOnMobile: true },
           { key: 'average', label: 'Average', render: (r) => <Badge tone={gradeTone(r.average)}>{r.average}%</Badge> },
           ...(res.cls?.section === 'JHS' ? [{ key: 'aggregate', label: 'Aggregate' }] : []),

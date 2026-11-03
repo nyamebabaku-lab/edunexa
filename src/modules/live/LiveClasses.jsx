@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Video, Radio, Copy, Users, CalendarClock, KeyRound, Send, Trash2, Clock, History } from 'lucide-react';
+import { Plus, Video, Radio, Copy, Users, CalendarClock, KeyRound, Send, Trash2, Clock, History, WifiOff } from 'lucide-react';
+import { useNetwork } from '../../data/offline';
 import { useDB } from '../../data/store';
 import { useLookups, useCurrentUser, usePortalStudent, sortedClasses, TODAY } from '../../data/selectors';
 import { fmtDate, nowISO } from '../../lib/format';
 import { makeRoomCode, normalizeCode, isValidCode, inviteLink, sessionStatus, canHost } from '../../lib/live';
 import { Card, PageHeader, Tabs, Button, Badge, StatCard, Input, Modal, FormModal, EmptyState, IconButton, Avatar, toast, confirmDialog, cx } from '../../components/ui';
+import { photoKey } from '../../data/photos';
 
 const TONE = { Live: 'red', 'Starting soon': 'amber', Scheduled: 'blue', Ended: 'slate', Missed: 'slate' };
 
@@ -19,6 +21,7 @@ export default function LiveClasses() {
   const [form, setForm] = useState(null);
   const [code, setCode] = useState('');
   const [detail, setDetail] = useState(null);
+  const net = useNetwork();
   const isStaff = ['admin', 'superadmin', 'teacher'].includes(user.role);
   const isTeacher = user.role === 'teacher';
 
@@ -74,6 +77,8 @@ export default function LiveClasses() {
         )}
       </div>
 
+      {!net.online && <Card className="mb-6 flex items-center gap-3 border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200"><WifiOff className="h-5 w-5 shrink-0" /> You're offline. You can still view and schedule classes; joining a live class needs internet.</Card>}
+      {net.online && net.slow && <Card className="mb-6 p-4 text-sm text-slate-600 dark:text-slate-300">Slow connection detected — classes will start in <b>low-data</b> mode. You can switch to audio-only inside the class.</Card>}
       <Tabs className="mb-6" value={tab} onChange={setTab} tabs={[{ value: 'upcoming', label: 'Upcoming', icon: CalendarClock, count: upcoming.length }, { value: 'past', label: 'Past', icon: History, count: past.length }]} />
 
       {list.length === 0 ? (
@@ -97,7 +102,7 @@ export default function LiveClasses() {
                 </button>
                 <div className="mt-3 space-y-1 text-xs text-slate-500">
                   <p className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> {fmtDate(s.date, 'EEE d MMM')} · {s.start} · {s.duration} min</p>
-                  <p className="flex items-center gap-1.5"><Avatar name={L.staffName(s.teacherId)} size="xs" className="!h-5 !w-5 !text-[8px]" /> {L.staffName(s.teacherId)}</p>
+                  <p className="flex items-center gap-1.5"><Avatar name={L.staffName(s.teacherId)} photo={photoKey('Staff', s.teacherId)} size="xs" className="!h-5 !w-5 !text-[8px]" /> {L.staffName(s.teacherId)}</p>
                   {s.st === 'Ended' && <p className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> {s.attendance?.length || 0} attended</p>}
                 </div>
                 <div className="mt-auto flex gap-2 pt-4">
@@ -139,7 +144,7 @@ export default function LiveClasses() {
                 <div className="divide-y divide-slate-100 rounded-2xl border border-slate-100 dark:divide-white/5 dark:border-white/5">
                   {d.attendance.map((a, i) => (
                     <div key={i} className="flex items-center gap-3 px-3 py-2 text-sm">
-                      <Avatar name={a.name} size="xs" />
+                      <Avatar name={a.name} photo={photoKey(a.personType, a.personId)} size="xs" />
                       <span className="flex-1">{a.name}</span>
                       <span className="text-xs text-slate-500">{a.joinedAt} – {a.leftAt || 'still in'}</span>
                     </div>

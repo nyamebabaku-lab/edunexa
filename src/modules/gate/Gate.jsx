@@ -10,6 +10,8 @@ import { QRCode } from '../../components/QR';
 import PrintView from '../../components/PrintView';
 import { SchoolLogo } from '../../components/layout/Logo';
 import { ClockResult } from './ClockIn';
+import { Portrait } from '../../components/PhotoEditor';
+import { photoKey } from '../../data/photos';
 
 const mins = (t) => (t ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) : null);
 const hhmm = (m) => (m == null ? '—' : `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(Math.round(m % 60)).padStart(2, '0')}`);
@@ -25,8 +27,11 @@ function Badges({ list }) {
             <SchoolLogo className="h-6 w-6" />
             <p className="truncate text-[10px] font-extrabold uppercase">{db.settings.schoolName}</p>
           </div>
-          <div className="flex flex-col items-center p-3">
-            <QRCode value={badgeToken(p.type, p.id)} size={120} />
+          <div className="flex items-center gap-3 p-3">
+            <Portrait pkey={photoKey(p.type, p.id)} name={p.name} className="h-24 w-20 shrink-0" />
+            <QRCode value={badgeToken(p.type, p.id)} size={96} />
+          </div>
+          <div className="flex flex-col items-center px-3 pb-3">
             <p className="mt-2 text-center text-sm font-bold">{p.name}</p>
             <p className="text-[11px] text-slate-500">{p.type === 'Student' ? `${p.code} · ${L.className(p.classId)}` : `${p.code} · ${p.role}`}</p>
           </div>
@@ -133,7 +138,7 @@ export default function Gate() {
             </>
           }
           columns={[
-            { key: 'name', label: 'Name', render: (r) => <div className="flex items-center gap-3"><Avatar name={r.name} size="sm" /><div><p className="font-semibold">{r.name}</p><p className="text-xs text-slate-500">{r.sub}</p></div></div> },
+            { key: 'name', label: 'Name', render: (r) => <div className="flex items-center gap-3"><Avatar name={r.name} photo={photoKey(r.type, r.id)} size="sm" /><div><p className="font-semibold">{r.name}</p><p className="text-xs text-slate-500">{r.sub}</p></div></div> },
             { key: 'in', label: 'In', sort: (r) => r.c?.in || '99', render: (r) => (r.c ? <span className="font-semibold">{r.c.in}</span> : '—') },
             { key: 'out', label: 'Out', sort: (r) => r.c?.out || '', render: (r) => r.c?.out || '—' },
             { key: 'method', label: 'Method', hideOnMobile: true, render: (r) => r.c?.inMethod || '—' },

@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, GraduationCap, CalendarOff, Banknote, Check, X } from 'lucide-react';
+import { Users, GraduationCap, CalendarOff, Banknote, Check, X, Images } from 'lucide-react';
 import { useDB } from '../../data/store';
 import { useLookups, TODAY } from '../../data/selectors';
 import { fmtDate, money, sum } from '../../lib/format';
-import { Avatar, Badge, PageHeader, StatCard, Tabs, Select, IconButton, toast } from '../../components/ui';
+import { Avatar, Badge, PageHeader, StatCard, Tabs, Select, IconButton, Button, toast } from '../../components/ui';
+import { BulkPhotoUpload } from '../../components/PhotoEditor';
 import CrudPage from '../../components/CrudPage';
+import { photoKey } from '../../data/photos';
 
 export const STAFF_ROLES = ['Teacher', 'Administrator', 'Accountant', 'Librarian', 'Storekeeper', 'Transport Officer', 'Nurse', 'Driver', 'Security', 'Cleaner', 'Cook', 'Matron'];
 export const DEPARTMENTS = ['Early Years', 'Primary', 'JHS', 'SHS', 'Diploma', 'Administration', 'Finance', 'Library', 'Stores', 'Transport', 'Health', 'Support'];
@@ -37,6 +39,7 @@ export default function Staff() {
   const navigate = useNavigate();
   const [tab, setTab] = useState('staff');
   const [role, setRole] = useState('');
+  const [bulk, setBulk] = useState(false);
   const pending = leaves.filter((l) => l.status === 'Pending');
 
   return (
@@ -58,7 +61,7 @@ export default function Staff() {
           defaults={{ title: 'Mr.', gender: 'Male', role: 'Teacher', status: 'Active', dateJoined: TODAY, allowances: 0 }}
           toRecord={(v) => (v.staffNo ? v : { ...v, staffNo: `BFIS/ST/${String(staff.length + 1).padStart(3, '0')}` })}
           searchText={(s) => `${s.firstName} ${s.lastName} ${s.role} ${s.department} ${s.staffNo}`}
-          toolbar={<Select className="!w-auto" value={role} onChange={(e) => setRole(e.target.value)} options={STAFF_ROLES} placeholder="All roles" />}
+          toolbar={<><Select className="!w-auto" value={role} onChange={(e) => setRole(e.target.value)} options={STAFF_ROLES} placeholder="All roles" /><Button variant="secondary" icon={Images} onClick={() => setBulk(true)}>Bulk photos</Button></>}
           fields={staffFields}
           canDelete={false}
           columns={[
@@ -68,7 +71,7 @@ export default function Staff() {
               sort: (s) => s.lastName,
               render: (s) => (
                 <div className="flex items-center gap-3">
-                  <Avatar name={`${s.firstName} ${s.lastName}`} size="sm" />
+                  <Avatar name={`${s.firstName} ${s.lastName}`} photo={photoKey('Staff', s.id)} size="sm" />
                   <div>
                     <p className="font-semibold text-slate-900 dark:text-white">{s.title} {s.firstName} {s.lastName}</p>
                     <p className="text-xs text-slate-500">{s.staffNo}</p>
@@ -119,6 +122,7 @@ export default function Staff() {
           ]}
         />
       )}
+      <BulkPhotoUpload open={bulk} onClose={() => setBulk(false)} personType="Staff" people={staff.map((s) => ({ id: s.id, code: s.staffNo, name: `${s.firstName} ${s.lastName}` }))} />
     </>
   );
 }

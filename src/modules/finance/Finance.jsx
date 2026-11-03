@@ -8,6 +8,7 @@ import { Card, CardHeader, PageHeader, Tabs, Button, Badge, Avatar, DataTable, S
 import CrudPage from '../../components/CrudPage';
 import PrintView from '../../components/PrintView';
 import { RecordPaymentModal, ReceiptDoc, InvoiceDoc, invoiceStatus } from './shared';
+import { photoKey } from '../../data/photos';
 
 function Overview() {
   const db = useDB();
@@ -182,7 +183,7 @@ function Arrears() {
           </>
         }
         columns={[
-          { key: 'name', label: 'Student', sort: (r) => r.s.lastName, render: (r) => <div className="flex items-center gap-3"><Avatar name={fullName(r.s)} size="sm" /><div><p className="font-semibold">{fullName(r.s)}</p><p className="text-xs text-slate-500">{L.className(r.s.classId)}</p></div></div> },
+          { key: 'name', label: 'Student', sort: (r) => r.s.lastName, render: (r) => <div className="flex items-center gap-3"><Avatar name={fullName(r.s)} photo={photoKey('Student', r.s.id)} size="sm" /><div><p className="font-semibold">{fullName(r.s)}</p><p className="text-xs text-slate-500">{L.className(r.s.classId)}</p></div></div> },
           { key: 'parent', label: 'Parent', hideOnMobile: true, render: (r) => <div><p>{L.parentName(r.s.parentId)}</p><p className="text-xs text-slate-500">{L.parent(r.s.parentId)?.phone}</p></div> },
           { key: 'billed', label: 'Billed', hideOnMobile: true, render: (r) => money(r.billed) },
           { key: 'paid', label: 'Paid', hideOnMobile: true, render: (r) => <span className="text-emerald-600">{money(r.paid)}</span> },

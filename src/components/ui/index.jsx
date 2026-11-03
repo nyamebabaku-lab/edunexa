@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { create } from 'zustand';
 import { X, Search, ChevronLeft, ChevronRight, ArrowUpDown, CheckCircle2, AlertTriangle, Info, Inbox } from 'lucide-react';
 import { initials } from '../../lib/format';
+import { usePhoto } from '../../data/photos';
 
 export const cx = (...c) => c.filter(Boolean).join(' ');
 
@@ -101,9 +102,12 @@ export const Badge = ({ tone = 'slate', className, children, dot }) => (
 );
 
 const AV_COLORS = ['bg-brand-600', 'bg-accent-600', 'bg-emerald-600', 'bg-violet-600', 'bg-amber-500', 'bg-sky-600', 'bg-teal-600', 'bg-navy-800'];
-export function Avatar({ name = '', size = 'md', className }) {
+/** Initials avatar; pass `photo` (a photo key from data/photos) to show the person's picture when one exists. */
+export function Avatar({ name = '', size = 'md', className, photo }) {
+  const img = usePhoto(photo);
   const n = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   const sz = { xs: 'h-7 w-7 text-[10px]', sm: 'h-8 w-8 text-xs', md: 'h-10 w-10 text-sm', lg: 'h-14 w-14 text-lg', xl: 'h-20 w-20 text-2xl' }[size];
+  if (img) return <img src={img} alt={name} className={cx('shrink-0 rounded-full object-cover ring-2 ring-white dark:ring-navy-900', sz, className)} />;
   return (
     <div className={cx('flex shrink-0 items-center justify-center rounded-full font-bold text-white ring-2 ring-white dark:ring-navy-900', AV_COLORS[n % AV_COLORS.length], sz, className)}>
       {initials(name.replace(/^(Mr\.|Mrs\.|Ms\.|Dr\.|Dr\. Mrs\.)\s/, ''))}

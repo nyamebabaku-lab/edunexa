@@ -6,6 +6,7 @@ import { useLookups, useBalances } from '../../data/selectors';
 import { fullName, money } from '../../lib/format';
 import { Avatar, Badge, PageHeader, Modal, Card, Button, cx } from '../../components/ui';
 import CrudPage from '../../components/CrudPage';
+import { photoKey } from '../../data/photos';
 
 export default function Parents() {
   const students = useDB((s) => s.students);
@@ -81,7 +82,7 @@ export default function Parents() {
             <p className="label !mt-6">Children</p>
             {kids(view.id).map((k) => (
               <Card key={k.id} className="flex cursor-pointer items-center gap-3 p-3 hover:shadow-lift" onClick={() => navigate(`/students/${k.id}`)}>
-                <Avatar name={fullName(k)} size="sm" />
+                <Avatar name={fullName(k)} photo={photoKey('Student', k.id)} size="sm" />
                 <div className="flex-1">
                   <p className="text-sm font-semibold">{fullName(k)}</p>
                   <p className="text-xs text-slate-500">{L.className(k.classId)} · {k.admissionNo}</p>

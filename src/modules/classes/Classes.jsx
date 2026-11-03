@@ -7,6 +7,7 @@ import { fullName } from '../../lib/format';
 import { SECTIONS } from '../../data/seed';
 import { Card, Badge, Avatar, Button, PageHeader, Tabs, Progress, Modal, Select, FormModal, toast } from '../../components/ui';
 import CrudPage from '../../components/CrudPage';
+import { photoKey } from '../../data/photos';
 
 export default function Classes() {
   const db = useDB();
@@ -139,7 +140,7 @@ export default function Classes() {
               <div className="space-y-1">
                 {db.students.filter((s) => s.classId === cls.id).map((s) => (
                   <button key={s.id} onClick={() => navigate(`/students/${s.id}`)} className="flex w-full items-center gap-3 rounded-xl p-2 text-left hover:bg-slate-50 dark:hover:bg-white/5">
-                    <Avatar name={fullName(s)} size="xs" />
+                    <Avatar name={fullName(s)} photo={photoKey('Student', s.id)} size="xs" />
                     <span className="text-sm">{fullName(s)}</span>
                     <span className="ml-auto text-xs text-slate-400">{s.gender[0]}</span>
                   </button>

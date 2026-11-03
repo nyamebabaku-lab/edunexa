@@ -5,6 +5,7 @@ import { useLookups, useCurrentUser, usePortalStudent, TODAY } from '../../data/
 import { fmtDate, money, fullName, daysBetween } from '../../lib/format';
 import { Card, CardHeader, PageHeader, Tabs, Badge, Avatar, Button, StatCard, Modal, Select, Progress, IconButton, EmptyState, toast } from '../../components/ui';
 import CrudPage from '../../components/CrudPage';
+import { photoKey } from '../../data/photos';
 
 function ParentBus() {
   const db = useDB();
@@ -94,7 +95,7 @@ function Routes() {
             <div className="divide-y divide-slate-100 rounded-2xl border border-slate-100 dark:divide-white/5 dark:border-white/5">
               {riders(r.id).map((s) => (
                 <div key={s.id} className="flex items-center gap-3 p-3">
-                  <Avatar name={fullName(s)} size="xs" />
+                  <Avatar name={fullName(s)} photo={photoKey('Student', s.id)} size="xs" />
                   <div className="flex-1"><p className="text-sm font-semibold">{fullName(s)}</p><p className="text-xs text-slate-500">{L.className(s.classId)} · {L.parent(s.parentId)?.address}</p></div>
                   <span className="hidden text-xs text-slate-500 sm:block">{L.parent(s.parentId)?.phone}</span>
                   <IconButton icon={X} label="Remove" onClick={() => { db.update('students', s.id, { busRouteId: null }); toast.info('Rider removed'); }} />

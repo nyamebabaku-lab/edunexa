@@ -7,7 +7,8 @@ import { useLookups, TODAY } from '../../data/selectors';
 import { gateToken, gateCode, slotNow, parseBadge, clock } from '../../lib/gate';
 import { QRCode, QRScanner } from '../../components/QR';
 import { SchoolLogo } from '../../components/layout/Logo';
-import { cx } from '../../components/ui';
+import { cx, Avatar } from '../../components/ui';
+import { photoKey, usePhoto } from '../../data/photos';
 
 /** Full-screen display for a tablet or TV at the school entrance. */
 export default function GateKiosk() {
@@ -114,8 +115,11 @@ export default function GateKiosk() {
             <div className="space-y-2">
               {recent.map((c) => (
                 <div key={c.id} className="flex items-center gap-3 rounded-2xl bg-white/5 px-4 py-3">
-                  <div className={cx('flex h-9 w-9 items-center justify-center rounded-xl', c.out ? 'bg-slate-500/30' : c.late ? 'bg-amber-500/30 text-amber-300' : 'bg-emerald-500/25 text-emerald-300')}>
-                    {c.out ? <LogOut className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
+                  <div className="relative">
+                    <Avatar name={nameOf(c)} photo={photoKey(c.personType, c.personId)} size="md" className="!ring-0" />
+                    <span className={cx('absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full ring-2 ring-navy-950', c.out ? 'bg-slate-500' : c.late ? 'bg-amber-500' : 'bg-emerald-500')}>
+                      {c.out ? <LogOut className="h-3 w-3" /> : <LogIn className="h-3 w-3" />}
+                    </span>
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold">{nameOf(c)}</p>
@@ -132,6 +136,7 @@ export default function GateKiosk() {
       {flash && (
         <div className={cx('fixed inset-0 z-50 flex flex-col items-center justify-center text-center', flash.action === 'in' ? (flash.late ? 'bg-amber-500' : 'bg-emerald-600') : flash.action === 'out' ? 'bg-brand-700' : 'bg-accent-700')}>
           <p className="text-6xl font-extrabold">{flash.action === 'in' ? 'Welcome!' : flash.action === 'out' ? 'Goodbye!' : flash.action === 'repeat' || flash.action === 'done' ? 'Already recorded' : 'Not recognised'}</p>
+          {flash.record && <FlashPortrait flash={flash} />}
           {flash.name && <p className="mt-4 text-3xl font-bold">{flash.name}</p>}
           {flash.record && <p className="mt-2 text-xl opacity-90">{flash.action === 'out' ? `Out ${flash.record.out}` : `In ${flash.record.in}`}{flash.late ? ' · late' : ''}</p>}
         </div>
@@ -143,4 +148,10 @@ export default function GateKiosk() {
       </div>
     </div>
   );
+}
+
+/** Large photo on the scan confirmation so the guard can check the face matches. */
+function FlashPortrait({ flash }) {
+  const img = usePhoto(photoKey(flash.record.personType, flash.record.personId));
+  return img ? <img src={img} alt={flash.name} className="mt-8 h-48 w-48 rounded-[2rem] object-cover shadow-2xl ring-8 ring-white/25" /> : null;
 }

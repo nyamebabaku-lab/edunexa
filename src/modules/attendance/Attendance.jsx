@@ -4,6 +4,7 @@ import { useDB } from '../../data/store';
 import { useLookups, useCurrentUser, sortedClasses, attendanceStats, TODAY } from '../../data/selectors';
 import { fullName, fmtDate, nowISO, pct } from '../../lib/format';
 import { Card, PageHeader, Select, Input, Button, Avatar, Tabs, StatCard, Badge, DataTable, toast, cx } from '../../components/ui';
+import { photoKey } from '../../data/photos';
 
 const MARKS = [
   { k: 'P', label: 'Present', on: 'bg-emerald-500 text-white', ring: 'hover:bg-emerald-50 dark:hover:bg-emerald-500/10' },
@@ -88,7 +89,7 @@ export default function Attendance() {
                 <div key={s.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
                   <div className="flex flex-1 items-center gap-3">
                     <span className="w-6 text-xs font-semibold text-slate-400">{i + 1}</span>
-                    <Avatar name={fullName(s)} size="sm" />
+                    <Avatar name={fullName(s)} photo={photoKey('Student', s.id)} size="sm" />
                     <div>
                       <p className="text-sm font-semibold text-slate-800 dark:text-white">{fullName(s)}</p>
                       <p className="text-xs text-slate-500">{s.admissionNo}</p>
@@ -120,7 +121,7 @@ export default function Attendance() {
           searchText={(r) => fullName(r.student)}
           initialSort={{ key: 'rate', dir: 'asc' }}
           columns={[
-            { key: 'name', label: 'Student', sort: (r) => r.student.lastName, render: (r) => <div className="flex items-center gap-3"><Avatar name={fullName(r.student)} size="sm" /><span className="font-semibold">{fullName(r.student)}</span></div> },
+            { key: 'name', label: 'Student', sort: (r) => r.student.lastName, render: (r) => <div className="flex items-center gap-3"><Avatar name={fullName(r.student)} photo={photoKey('Student', r.student.id)} size="sm" /><span className="font-semibold">{fullName(r.student)}</span></div> },
             { key: 'P', label: 'Present' },
             { key: 'L', label: 'Late' },
             { key: 'A', label: 'Absent', render: (r) => <span className={r.A ? 'font-bold text-accent-600' : ''}>{r.A}</span> },

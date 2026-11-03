@@ -5,7 +5,9 @@ import { ROLES } from '../../lib/permissions';
 import { nowISO } from '../../lib/format';
 import { findAccount, checkPassword, hashPassword, passwordProblems, needsOtp, makeOtp, maskContact, newUserRecord, DEFAULT_PASSWORD } from '../../lib/auth';
 import Logo from '../../components/layout/Logo';
+import { OfflineBanner } from '../../components/NetworkBanner';
 import { Avatar, Button, Field, Input, Select, toast, cx } from '../../components/ui';
+import { userPhotoKey } from '../../data/photos';
 
 const RING = {
   brand: 'hover:ring-brand-500', sky: 'hover:ring-sky-500', emerald: 'hover:ring-emerald-500', violet: 'hover:ring-violet-500',
@@ -186,6 +188,8 @@ export default function Login() {
   const setS = (k) => (e) => setSignup({ ...signup, [k]: e.target.value });
 
   return (
+    <>
+    <OfflineBanner />
     <div className="min-h-screen bg-white dark:bg-navy-950 lg:grid lg:grid-cols-[1.05fr_1fr]">
       <div className="relative hidden overflow-hidden bg-navy-900 p-12 text-white lg:flex lg:flex-col">
         <div className="absolute -right-24 -top-24 h-96 w-96 rounded-full bg-brand-600/40 blur-3xl" />
@@ -224,7 +228,7 @@ export default function Login() {
                   if (!r) return null;
                   return (
                     <button key={u.id} onClick={() => finish({ user: u })} className={cx('group flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 text-left ring-2 ring-transparent transition hover:-translate-y-0.5 hover:shadow-lift dark:border-white/10 dark:bg-navy-900', RING[r.color])}>
-                      <Avatar name={u.name} />
+                      <Avatar name={u.name} photo={userPhotoKey(u)} />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-slate-900 dark:text-white">{r.label}</p>
                         <p className="truncate text-xs text-slate-500">{u.name}</p>
@@ -320,5 +324,6 @@ export default function Login() {
         </div>
       </div>
     </div>
+    </>
   );
 }

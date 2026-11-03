@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Download, GraduationCap, Users, BedDouble, Bus } from 'lucide-react';
+import { Plus, Download, GraduationCap, Users, BedDouble, Bus, Images } from 'lucide-react';
 import { useDB } from '../../data/store';
 import { useLookups, useBalances, useCurrentUser, sortedClasses, TODAY } from '../../data/selectors';
 import { fullName, age, money, downloadCSV } from '../../lib/format';
 import { SECTIONS } from '../../data/seed';
 import { Button, Badge, Avatar, DataTable, FormModal, PageHeader, Select, StatCard, toast } from '../../components/ui';
+import { photoKey, usePhotos } from '../../data/photos';
+import { BulkPhotoUpload } from '../../components/PhotoEditor';
 
 export function studentFields(classes, parents, routes, dorms) {
   return [
@@ -41,6 +43,8 @@ export default function Students() {
   const [classId, setClassId] = useState('');
   const [status, setStatus] = useState('Active');
   const [form, setForm] = useState(null);
+  const [bulk, setBulk] = useState(false);
+  const photos = usePhotos((p) => p.map);
 
   const teacherClassIds = useMemo(() => {
     if (user.role !== 'teacher') return null;
@@ -92,6 +96,7 @@ export default function Students() {
             <Button variant="secondary" icon={Download} onClick={exportCSV}>
               Export
             </Button>
+            {user.role === 'admin' && <Button variant="secondary" icon={Images} onClick={() => setBulk(true)}>Bulk photos</Button>}
             {user.role === 'admin' && (
               <Button icon={Plus} onClick={() => setForm({ gender: 'Female', boarding: 'Day', status: 'Active' })}>
                 Add student
@@ -104,7 +109,7 @@ export default function Students() {
         <StatCard label="Showing" value={rows.length} icon={GraduationCap} />
         <StatCard label="Girls / Boys" value={`${rows.filter((s) => s.gender === 'Female').length} / ${rows.filter((s) => s.gender === 'Male').length}`} icon={Users} tone="violet" />
         <StatCard label="Boarders" value={rows.filter((s) => s.boarding === 'Boarder').length} icon={BedDouble} tone="navy" />
-        <StatCard label="Bus riders" value={rows.filter((s) => s.busRouteId).length} icon={Bus} tone="red" />
+        <StatCard label="Bus riders" value={rows.filter((s) => s.busRouteId).length} icon={Bus} tone="red" sub={`${rows.filter((s) => photos[photoKey('Student', s.id)]).length} of ${rows.length} have photos`} />
       </div>
       <DataTable
         rows={rows}
@@ -124,7 +129,7 @@ export default function Students() {
             sort: (s) => s.lastName,
             render: (s) => (
               <div className="flex items-center gap-3">
-                <Avatar name={fullName(s)} size="sm" />
+                <Avatar name={fullName(s)} photo={photoKey('Student', s.id)} size="sm" />
                 <div>
                   <p className="font-semibold text-slate-900 dark:text-white">{fullName(s)}</p>
                   <p className="text-xs text-slate-500">{s.admissionNo}</p>
@@ -142,6 +147,7 @@ export default function Students() {
             : []),
         ]}
       />
+      <BulkPhotoUpload open={bulk} onClose={() => setBulk(false)} personType="Student" people={db.students.map((s) => ({ id: s.id, code: s.admissionNo, name: fullName(s) }))} />
       <FormModal open={!!form} onClose={() => setForm(null)} title="Add student" fields={studentFields(db.classes, db.parents, db.routes, db.dorms)} initial={form} onSubmit={save} />
     </>
   );

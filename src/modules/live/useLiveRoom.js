@@ -91,6 +91,7 @@ export function useLiveRoom({ code, isHost, me, stream, initial, settings, onAtt
   const [cam, setCam] = useState(initial.cam);
   const [hand, setHand] = useState(false);
   const [screen, setScreen] = useState(false);
+  const [bw, setBwState] = useState(initial.bw || 'normal'); // normal | low | audio
 
   const r = useRef({}).current; // mutable engine state
   r.me = me;
@@ -100,7 +101,7 @@ export function useLiveRoom({ code, isHost, me, stream, initial, settings, onAtt
 
   // ---------- helpers ----------
   const send = (conn, msg) => conn?.open && conn.send(msg);
-  const self = () => ({ id: r.peer?.id, name: me.name, role: me.role, personId: me.personId, mic: r.mic, cam: r.cam, hand: r.hand, screen: r.screen, host: isHost });
+  const self = () => ({ id: r.peer?.id, name: me.name, role: me.role, personId: me.personId, mic: r.mic, cam: r.cam, hand: r.hand, screen: r.screen, bw: r.bw, host: isHost });
 
   const broadcastRoster = () => {
     const list = [self(), ...Object.values(r.members).map((m) => m.info)];
@@ -109,11 +110,15 @@ export function useLiveRoom({ code, isHost, me, stream, initial, settings, onAtt
     Object.values(r.members).forEach((m) => send(m.conn, { t: 'roster', list, rules: r.rules }));
     // The host is part of the mesh too: dial the participants it is responsible for.
     meshConnect(list.filter((p) => p.id && (p.id === r.peer?.id || r.members[p.id]?.info)));
+    applyBandwidth();
   };
 
   const addCall = (call) => {
     r.calls[call.peer] = call;
-    call.on('stream', (s) => setStreams((x) => ({ ...x, [call.peer]: s })));
+    call.on('stream', (s) => {
+      setStreams((x) => ({ ...x, [call.peer]: s }));
+      setTimeout(applyBandwidth, 500);
+    });
     const drop = () => {
       delete r.calls[call.peer];
       setStreams((x) => {
@@ -152,9 +157,31 @@ export function useLiveRoom({ code, isHost, me, stream, initial, settings, onAtt
     if (old && old !== track) old.stop();
   };
 
+  // Data saver: limit (or stop) the video each connection carries, per sender and receiver.
+  const applyBandwidth = () => {
+    Object.entries(r.calls || {}).forEach(([peerId, c]) => {
+      const pc = c.peerConnection;
+      if (!pc) return;
+      const tr = pc.getTransceivers().find((t) => t.sender.track?.kind === 'video');
+      if (!tr) return;
+      const them = (r.roster || []).find((p) => p.id === peerId)?.bw || 'normal';
+      const params = tr.sender.getParameters();
+      if (!params.encodings?.length) params.encodings = [{}];
+      const e = params.encodings[0];
+      const audioOnly = them === 'audio' || r.bw === 'audio';
+      const low = them === 'low' || r.bw === 'low';
+      e.active = !audioOnly;
+      e.maxBitrate = low ? 150_000 : 700_000;
+      e.scaleResolutionDownBy = low ? 2 : 1;
+      e.maxFramerate = low ? 15 : 24;
+      tr.sender.setParameters(params).catch(() => {});
+    });
+  };
+
   const pushState = () => {
     if (isHost) broadcastRoster();
-    else send(r.hostConn, { t: 'state', mic: r.mic, cam: r.cam, hand: r.hand, screen: r.screen });
+    else send(r.hostConn, { t: 'state', mic: r.mic, cam: r.cam, hand: r.hand, screen: r.screen, bw: r.bw });
+    applyBandwidth();
   };
 
   // ---------- message handling ----------
@@ -167,12 +194,12 @@ export function useLiveRoom({ code, isHost, me, stream, initial, settings, onAtt
         setTimeout(() => m.conn.close(), 300);
         return;
       }
-      m.info = { id: peerId, name: msg.name, role: msg.role, personId: msg.personId, personType: msg.personType, mic: msg.mic, cam: msg.cam, hand: false, screen: false };
+      m.info = { id: peerId, name: msg.name, role: msg.role, personId: msg.personId, personType: msg.personType, mic: msg.mic, cam: msg.cam, bw: msg.bw || 'normal', hand: false, screen: false };
       broadcastRoster();
       send(m.conn, { t: 'chat-history', list: r.chat });
       r.onAttendance?.('join', m.info);
     } else if (msg.t === 'state' && m.info) {
-      m.info = { ...m.info, mic: msg.mic, cam: msg.cam, hand: msg.hand, screen: msg.screen };
+      m.info = { ...m.info, mic: msg.mic, cam: msg.cam, hand: msg.hand, screen: msg.screen, bw: msg.bw || 'normal' };
       broadcastRoster();
     } else if (msg.t === 'chat' && m.info) {
       const item = { id: `${Date.now()}${Math.random()}`, from: m.info.name, role: m.info.role, text: String(msg.text).slice(0, 1000), at: new Date().toISOString() };
@@ -190,6 +217,7 @@ export function useLiveRoom({ code, isHost, me, stream, initial, settings, onAtt
       setRules(msg.rules);
       setStatus('live');
       meshConnect(msg.list);
+      applyBandwidth();
       // Enforce classroom rules on this device.
       if (!msg.rules.studentsCanUnmute && r.me.role === 'student' && r.mic) toggleMicRef.current(false);
       if (!msg.rules.studentsCanUseCamera && r.me.role === 'student' && r.cam) toggleCamRef.current(false);
@@ -219,7 +247,7 @@ export function useLiveRoom({ code, isHost, me, stream, initial, settings, onAtt
   // ---------- connect ----------
   useEffect(() => {
     if (!stream) return undefined;
-    Object.assign(r, { stream, calls: {}, members: {}, chat: [], roster: [], mic: initial.mic, cam: initial.cam, hand: false, screen: false, rules: { studentsCanUnmute: settings.studentsCanUnmute, studentsCanUseCamera: settings.studentsCanUseCamera }, closed: false });
+    Object.assign(r, { stream, calls: {}, members: {}, chat: [], roster: [], mic: initial.mic, cam: initial.cam, hand: false, screen: false, bw: initial.bw || 'normal', rules: { studentsCanUnmute: settings.studentsCanUnmute, studentsCanUseCamera: settings.studentsCanUseCamera }, closed: false });
     stream.getAudioTracks().forEach((t) => (t.enabled = initial.mic));
     let retry;
     const config = { config: { iceServers: iceServers(settings) }, debug: 0 };
@@ -284,7 +312,7 @@ export function useLiveRoom({ code, isHost, me, stream, initial, settings, onAtt
       r.hostConn?.close();
       const conn = r.peer.connect(hostId, { reliable: true });
       r.hostConn = conn;
-      conn.on('open', () => send(conn, { t: 'hello', name: r.me.name, role: r.me.role, personId: r.me.personId, personType: r.me.personType, mic: r.mic, cam: r.cam }));
+      conn.on('open', () => send(conn, { t: 'hello', name: r.me.name, role: r.me.role, personId: r.me.personId, personType: r.me.personType, mic: r.mic, cam: r.cam, bw: r.bw }));
       conn.on('data', onGuestData);
       conn.on('close', () => {
         if (r.closed) return;
@@ -361,6 +389,13 @@ export function useLiveRoom({ code, isHost, me, stream, initial, settings, onAtt
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const setBw = useCallback(async (mode) => {
+    r.bw = mode;
+    setBwState(mode);
+    if (mode === 'audio' && r.cam) await toggleCamRef.current(false);
+    pushState();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const toggleHand = useCallback(() => {
     r.hand = !r.hand;
     setHand(r.hand);
@@ -409,5 +444,5 @@ export function useLiveRoom({ code, isHost, me, stream, initial, settings, onAtt
   const leaveRef = useRef(leave);
   leaveRef.current = leave;
 
-  return { status, error, myId, roster, streams, chat, rules, mic, cam, hand, screen, toggleMic, toggleCam, toggleScreen, toggleHand, sendChat, command, muteAll, setRule, leave };
+  return { status, error, myId, roster, streams, chat, rules, mic, cam, hand, screen, bw, setBw, toggleMic, toggleCam, toggleScreen, toggleHand, sendChat, command, muteAll, setRule, leave };
 }

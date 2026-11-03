@@ -1,19 +1,27 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, Phone, Mail, BookOpen, Banknote, CalendarOff, School } from 'lucide-react';
+import { ArrowLeft, Pencil, Phone, Mail, BookOpen, Banknote, CalendarOff, School, IdCard } from 'lucide-react';
 import { useDB } from '../../data/store';
-import { useLookups } from '../../data/selectors';
+import { useLookups, useCurrentUser } from '../../data/selectors';
+import { EditableAvatar, Portrait } from '../../components/PhotoEditor';
+import PrintView, { Paper } from '../../components/PrintView';
+import { SchoolLogo } from '../../components/layout/Logo';
+import { QRCode } from '../../components/QR';
+import { badgeToken } from '../../lib/gate';
 import { fmtDate, money } from '../../lib/format';
 import { payslip } from '../../lib/payroll';
-import { Card, CardHeader, Avatar, Badge, Button, KeyValue, FormModal, EmptyState, toast } from '../../components/ui';
+import { Card, CardHeader, Badge, Button, KeyValue, FormModal, EmptyState, toast } from '../../components/ui';
 import { staffFields } from './Staff';
+import { photoKey } from '../../data/photos';
 
 export default function StaffProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
   const db = useDB();
   const L = useLookups();
+  const user = useCurrentUser();
   const [edit, setEdit] = useState(false);
+  const [card, setCard] = useState(false);
   const s = db.staff.find((x) => x.id === id);
   if (!s) return <Card><EmptyState title="Staff member not found" /></Card>;
   const alloc = db.allocations.filter((a) => a.teacherId === s.id);
@@ -27,7 +35,7 @@ export default function StaffProfile() {
         <ArrowLeft className="h-4 w-4" /> Back
       </button>
       <Card className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center">
-        <Avatar name={`${s.firstName} ${s.lastName}`} size="xl" />
+        <EditableAvatar pkey={photoKey('Staff', s.id)} name={`${s.firstName} ${s.lastName}`} canEdit={['admin', 'superadmin'].includes(user.role)} />
         <div className="flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">{s.title} {s.firstName} {s.lastName}</h1>
@@ -39,7 +47,10 @@ export default function StaffProfile() {
             <span className="flex items-center gap-1.5"><Mail className="h-4 w-4 text-brand-600" /> {s.email}</span>
           </div>
         </div>
-        <Button icon={Pencil} onClick={() => setEdit(true)}>Edit</Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" icon={IdCard} onClick={() => setCard(true)}>Staff ID</Button>
+          <Button icon={Pencil} onClick={() => setEdit(true)}>Edit</Button>
+        </div>
       </Card>
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
@@ -86,6 +97,28 @@ export default function StaffProfile() {
           </div>
         </Card>
       </div>
+      <PrintView open={card} onClose={() => setCard(false)} title="Staff ID card">
+        <Paper className="!p-6">
+          <div className="mx-auto w-[340px] overflow-hidden rounded-2xl border border-slate-200 shadow-lg">
+            <div className="flex items-center gap-2 bg-navy-900 px-4 py-3 text-white">
+              <SchoolLogo className="h-8 w-8" />
+              <div className="leading-tight"><p className="text-xs font-extrabold uppercase">{db.settings.schoolName}</p><p className="text-[9px] text-slate-300">{db.settings.motto}</p></div>
+            </div>
+            <div className="flex gap-4 bg-white p-4">
+              <Portrait pkey={photoKey('Staff', s.id)} name={`${s.firstName} ${s.lastName}`} className="h-28 w-24 shrink-0" />
+              <div className="text-xs leading-relaxed">
+                <p className="text-sm font-extrabold text-slate-900">{s.title} {s.firstName} {s.lastName}</p>
+                <p><span className="text-slate-400">Staff No:</span> <b>{s.staffNo}</b></p>
+                <p><span className="text-slate-400">Role:</span> {s.role}</p>
+                <p><span className="text-slate-400">Dept:</span> {s.department}</p>
+                <p><span className="text-slate-400">Phone:</span> {s.phone}</p>
+              </div>
+              <QRCode value={badgeToken('Staff', s.id)} size={70} className="ml-auto self-end" />
+            </div>
+            <div className="bg-brand-700 px-4 py-1.5 text-center text-[10px] font-semibold uppercase tracking-widest text-white">Staff · {db.settings.academicYear}</div>
+          </div>
+        </Paper>
+      </PrintView>
       <FormModal open={edit} onClose={() => setEdit(false)} title="Edit staff member" fields={staffFields} initial={s} onSubmit={(v) => { db.update('staff', s.id, v); toast.success('Staff updated'); setEdit(false); }} />
     </>
   );

@@ -14,6 +14,23 @@ const PREFIX = {
   canteenItems: 'cfi', canteenStock: 'cin', canteenStockMoves: 'csm', canteenSales: 'csl', users: 'usr', clockings: 'clk', liveSessions: 'lvs',
 };
 
+// localStorage that reports a full device instead of failing silently.
+let warned = 0;
+const safeStorage = {
+  getItem: (k) => localStorage.getItem(k),
+  removeItem: (k) => localStorage.removeItem(k),
+  setItem: (k, v) => {
+    try {
+      localStorage.setItem(k, v);
+    } catch (e) {
+      if (Date.now() - warned > 30000) {
+        warned = Date.now();
+        window.dispatchEvent(new CustomEvent('edunexa-storage-full', { detail: e.name }));
+      }
+    }
+  },
+};
+
 export const useDB = create(
   persist(
     (set, get) => ({
@@ -21,6 +38,8 @@ export const useDB = create(
 
       add: (col, item) => {
         const rec = { id: item.id || uid(PREFIX[col] || 'rec'), ...item };
+        // Texts created while offline wait in the queue and go out when the connection returns.
+        if (col === 'smsLog' && typeof navigator !== 'undefined' && !navigator.onLine) rec.status = 'Queued';
         set((s) => ({ [col]: [rec, ...s[col]] }));
         return rec;
       },
@@ -65,7 +84,7 @@ export const useDB = create(
         out.settings = st;
         return out;
       },
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeStorage),
       partialize: (s) => Object.fromEntries(Object.entries(s).filter(([, v]) => typeof v !== 'function')),
     },
   ),

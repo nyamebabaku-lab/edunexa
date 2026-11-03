@@ -4,6 +4,7 @@ import { useDB } from '../../data/store';
 import { useLookups, useCurrentUser, usePortalStudent, sortedClasses, TODAY } from '../../data/selectors';
 import { fmtDate, fullName, pct } from '../../lib/format';
 import { Card, PageHeader, Tabs, Select, Button, Badge, Avatar, Modal, Field, Input, Textarea, FormModal, EmptyState, IconButton, toast, confirmDialog, cx } from '../../components/ui';
+import { photoKey } from '../../data/photos';
 
 const TYPE_ICON = { Notes: FileText, Video, Slides: Presentation, Worksheet: ClipboardList };
 
@@ -151,7 +152,7 @@ function Assignments({ classId }) {
                     return (
                       <div key={s.id} className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center">
                         <div className="flex flex-1 items-center gap-3">
-                          <Avatar name={fullName(s)} size="xs" />
+                          <Avatar name={fullName(s)} photo={photoKey('Student', s.id)} size="xs" />
                           <div className="min-w-0">
                             <p className="text-sm font-semibold">{fullName(s)}</p>
                             <p className="truncate text-xs text-slate-500">{sub ? `${fmtDate(sub.date, 'd MMM')} · ${sub.text}` : 'Not submitted'}</p>
@@ -354,7 +355,7 @@ function Quizzes({ classId }) {
           <div className="divide-y divide-slate-100 dark:divide-white/5">
             {db.quizAttempts.filter((a) => a.quizId === rq.id).sort((a, b) => b.score - a.score).map((a) => (
               <div key={a.id} className="flex items-center gap-3 py-2.5">
-                <Avatar name={L.studentName(a.studentId)} size="xs" />
+                <Avatar name={L.studentName(a.studentId)} photo={photoKey('Student', a.studentId)} size="xs" />
                 <span className="flex-1 text-sm">{L.studentName(a.studentId)}</span>
                 <Badge tone={pct(a.score, a.total) >= 60 ? 'green' : 'red'}>{a.score}/{a.total}</Badge>
               </div>

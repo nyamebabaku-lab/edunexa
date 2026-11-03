@@ -5,6 +5,7 @@ import { useLookups, TODAY } from '../../data/selectors';
 import { fmtDate, fullName } from '../../lib/format';
 import { Card, PageHeader, Tabs, Badge, Avatar, Button, StatCard, Progress, Modal, Select, IconButton, toast } from '../../components/ui';
 import CrudPage from '../../components/CrudPage';
+import { photoKey } from '../../data/photos';
 
 export default function Hostel() {
   const db = useDB();
@@ -89,7 +90,7 @@ export default function Hostel() {
             <div className="grid gap-2 sm:grid-cols-2">
               {occupants(d.id).map((s) => (
                 <div key={s.id} className="flex items-center gap-3 rounded-xl border border-slate-100 p-2.5 dark:border-white/5">
-                  <Avatar name={fullName(s)} size="xs" />
+                  <Avatar name={fullName(s)} photo={photoKey('Student', s.id)} size="xs" />
                   <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{fullName(s)}</p><p className="text-xs text-slate-500">{L.className(s.classId)} · Bed {s.bed}</p></div>
                   <IconButton icon={X} label="Remove" onClick={() => db.update('students', s.id, { dormId: null, bed: '' })} />
                 </div>

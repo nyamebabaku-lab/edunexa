@@ -5,6 +5,7 @@ import { useLookups, useCurrentUser, sortedClasses } from '../../data/selectors'
 import { fullName, downloadCSV } from '../../lib/format';
 import { gradeFor, gradeTone, CLASS_SCORE_MAX, EXAM_SCORE_MAX, SCALES, SECTION_SCALE } from '../../lib/grading';
 import { Card, CardHeader, PageHeader, Select, Button, Avatar, Badge, toast, cx } from '../../components/ui';
+import { photoKey } from '../../data/photos';
 
 export default function Gradebook() {
   const db = useDB();
@@ -100,7 +101,7 @@ export default function Gradebook() {
                     <tr key={s.id} className={cx(edits[s.id] && 'bg-amber-50/60 dark:bg-amber-500/5')}>
                       <td className="td">
                         <div className="flex items-center gap-3">
-                          <Avatar name={fullName(s)} size="xs" />
+                          <Avatar name={fullName(s)} photo={photoKey('Student', s.id)} size="xs" />
                           <span className="font-medium">{fullName(s)}</span>
                         </div>
                       </td>
