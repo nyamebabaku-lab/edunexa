@@ -1,6 +1,6 @@
-# Adding a Ghanaian voice-over
+# Replacing the narration with a Ghanaian voice
 
-The video has captions burned in and a **silent audio track**, so a narrator can be added without re-recording the screen.
+`EduNexa-Tutorial.mp4` is narrated by a computer voice (British English) over background music, with no on-screen captions. To use a real Ghanaian narrator instead, record `narration-script.md` and swap the audio as below. Note the command below replaces the music too; in CapCut you can keep the original audio at low volume as a music bed.
 
 ## 1. Record the narration
 - Use `narration-script.md`. Each line has the time it starts (minute:second).
@@ -24,4 +24,4 @@ If the voice starts a little early or late, shift it, e.g. 1.5 seconds later: ad
 4. Export 1080p.
 
 ## Subtitles
-`EduNexa-Tutorial.srt` can be uploaded to YouTube or Facebook as closed captions (useful if you later export a version without burned-in captions).
+`EduNexa-Tutorial.srt` can be uploaded to YouTube or Facebook as closed captions (the video has no burned-in captions).
