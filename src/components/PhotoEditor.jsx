@@ -103,8 +103,10 @@ function Cropper({ src, onSave, onCancel }) {
 }
 
 /** Modal to add, retake, crop or remove a person's photo. */
-export default function PhotoEditor({ open, onClose, pkey, name }) {
-  const current = usePhoto(pkey);
+export default function PhotoEditor({ open, onClose, pkey, name, onPick, value }) {
+  const saved = usePhoto(pkey);
+  // In pick mode (inside a form) the photo is handed back instead of saved straight away.
+  const current = value !== undefined ? value : saved;
   const [step, setStep] = useState('view');
   const [src, setSrc] = useState(null);
   const file = useRef(null);
@@ -125,6 +127,10 @@ export default function PhotoEditor({ open, onClose, pkey, name }) {
     r.readAsDataURL(f);
   };
   const save = async (dataUrl) => {
+    if (onPick) {
+      onPick(dataUrl);
+      return onClose();
+    }
     try {
       await savePhoto(pkey, dataUrl);
       toast.success('Photo saved', `Now shown on ${name}'s ID card, reports and profile`);
@@ -144,7 +150,16 @@ export default function PhotoEditor({ open, onClose, pkey, name }) {
             <Button variant="secondary" icon={Upload} onClick={() => file.current.click()}>Upload</Button>
             <Button icon={Camera} onClick={() => setStep('camera')}>Take photo</Button>
           </div>
-          {current && <Button variant="soft-red" icon={Trash2} className="mt-2 w-full" onClick={async () => { await removePhoto(pkey); toast.info('Photo removed'); onClose(); }}>Remove photo</Button>}
+          {current && (
+            <Button variant="soft-red" icon={Trash2} className="mt-2 w-full" onClick={async () => {
+              if (onPick) onPick(null);
+              else {
+                await removePhoto(pkey);
+                toast.info('Photo removed');
+              }
+              onClose();
+            }}>Remove photo</Button>
+          )}
         </div>
       )}
       {step === 'camera' && <CameraCapture onShot={(d) => { setSrc(d); setStep('crop'); }} onCancel={() => setStep('view')} />}
@@ -180,66 +195,48 @@ export function Portrait({ pkey, name, className = 'h-28 w-24' }) {
   );
 }
 
-const norm = (s) => (s || '').toUpperCase().replace(/\.[A-Z0-9]+$/, '').replace(/[^A-Z0-9]/g, '');
-
 /**
- * Upload many photos at once. Files are matched by the number in their name,
- * e.g. "BFIS_26_0112.jpg" or "BFIS-ST-002.png".
+ * Photo picker for add/edit forms. `value` is undefined (unchanged), a data URL (new photo)
+ * or null (remove); the form saves it with the record via applyPhotoChange().
  */
-export function BulkPhotoUpload({ open, onClose, people, personType }) {
-  const fileRef = useRef(null);
-  const [state, setState] = useState(null); // { total, done, matched: [], unmatched: [] }
-  useEffect(() => {
-    if (open) setState(null);
-  }, [open]);
-  const run = async (files) => {
-    const byCode = Object.fromEntries(people.map((p) => [norm(p.code), p]));
-    const list = [...files].filter((f) => f.type.startsWith('image/'));
-    const res = { total: list.length, done: 0, matched: [], unmatched: [] };
-    setState({ ...res });
-    for (const f of list) {
-      const p = byCode[norm(f.name)];
-      if (p) {
-        try {
-          await savePhoto(`${personType}:${p.id}`, await toSquareJpeg(f));
-          res.matched.push({ file: f.name, name: p.name });
-        } catch {
-          res.unmatched.push({ file: f.name, why: 'unreadable image' });
-        }
-      } else res.unmatched.push({ file: f.name, why: 'no matching number' });
-      res.done++;
-      setState({ ...res });
-    }
-    toast.success('Photos uploaded', `${res.matched.length} matched, ${res.unmatched.length} skipped`);
+export function PhotoField({ value, onChange, pkey, name }) {
+  const saved = usePhoto(pkey);
+  const shown = value === undefined ? saved : value;
+  const [open, setOpen] = useState(null);
+  const file = useRef(null);
+  const pick = (f) => {
+    if (!f) return;
+    if (!f.type.startsWith('image/')) return toast.error('Please choose an image file');
+    const r = new FileReader();
+    r.onload = () => setOpen({ src: r.result });
+    r.readAsDataURL(f);
   };
   return (
-    <Modal open={open} onClose={onClose} title={`Bulk ${personType.toLowerCase()} photos`} subtitle="Name each file with the person's number" size="md">
-      {!state ? (
-        <div className="space-y-4 text-sm">
-          <div className="rounded-2xl bg-slate-50 p-4 text-slate-600 dark:bg-white/5 dark:text-slate-300">
-            <p className="font-semibold text-slate-800 dark:text-white">How to name files</p>
-            <p className="mt-1">Use the {personType === 'Student' ? 'admission' : 'staff'} number; slashes can be dashes or underscores:</p>
-            <p className="mt-2 font-mono text-xs">{people.slice(0, 2).map((p) => `${p.code.replace(/\//g, '_')}.jpg`).join('   ')}</p>
-            <p className="mt-2 text-xs text-slate-500">Each photo is centre-cropped to a square and compressed to about 20 KB. You can adjust any photo later from the person's profile.</p>
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => run(e.target.files)} />
-          <Button icon={Upload} className="w-full" onClick={() => fileRef.current.click()}>Choose photos</Button>
+    <div className="flex items-center gap-4 rounded-2xl border border-dashed border-slate-200 p-3 dark:border-white/10">
+      {shown ? <img src={shown} alt={name || 'Photo'} className="h-20 w-20 shrink-0 rounded-2xl object-cover" /> : <Avatar name={name || '?'} size="xl" className="!rounded-2xl" />}
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{shown ? (value ? 'New photo ready — saves with this form' : 'Current photo') : 'No photo yet'}</p>
+        <p className="text-xs text-slate-500">Front-facing, plain background. Used on ID cards, report cards and the gate.</p>
+        <input ref={file} type="file" accept="image/*" className="hidden" onChange={(e) => { pick(e.target.files[0]); e.target.value = ''; }} />
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Button size="sm" variant="secondary" icon={Upload} onClick={() => file.current.click()}>Upload</Button>
+          <Button size="sm" variant="secondary" icon={Camera} onClick={() => setOpen({ camera: true })}>Take photo</Button>
+          {shown && <Button size="sm" variant="soft-red" icon={Trash2} onClick={() => onChange(null)}>Remove</Button>}
         </div>
+      </div>
+      {open && <PickPhoto initial={open} name={name} onClose={() => setOpen(null)} onPick={onChange} />}
+    </div>
+  );
+}
+
+function PickPhoto({ initial, name, onClose, onPick }) {
+  const [src, setSrc] = useState(initial.src || null);
+  return (
+    <Modal open onClose={onClose} title={src ? 'Adjust photo' : 'Take a photo'} subtitle={name} size="sm">
+      {src ? (
+        <Cropper src={src} onCancel={onClose} onSave={(d) => { onPick(d); onClose(); }} />
       ) : (
-        <div className="space-y-4 text-sm">
-          <div>
-            <div className="mb-1 flex justify-between"><span>{state.done < state.total ? 'Processing…' : 'Done'}</span><span>{state.done}/{state.total}</span></div>
-            <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10"><div className="h-full rounded-full bg-brand-600 transition-all" style={{ width: `${(state.done / Math.max(1, state.total)) * 100}%` }} /></div>
-          </div>
-          <p className="font-semibold text-emerald-600">{state.matched.length} photo(s) matched</p>
-          {state.unmatched.length > 0 && (
-            <div>
-              <p className="font-semibold text-accent-600">{state.unmatched.length} skipped</p>
-              <ul className="mt-1 max-h-40 overflow-y-auto text-xs text-slate-500">{state.unmatched.map((u) => <li key={u.file}>{u.file} — {u.why}</li>)}</ul>
-            </div>
-          )}
-          {state.done === state.total && <Button className="w-full" onClick={onClose}>Close</Button>}
-        </div>
+        <CameraCapture onShot={setSrc} onCancel={onClose} />
       )}
     </Modal>
   );

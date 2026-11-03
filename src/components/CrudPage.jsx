@@ -22,6 +22,7 @@ export default function CrudPage({
   initialSort,
   pageSize,
   modalSize,
+  onSaved,
 }) {
   const all = useDB((s) => s[collection]);
   const add = useDB((s) => s.add);
@@ -31,14 +32,18 @@ export default function CrudPage({
   const rows = rowsOverride || all;
 
   const save = (v) => {
-    const rec = toRecord(v);
+    // Fields starting with "_" (e.g. a photo) belong to the form, not the stored record.
+    const rec = toRecord(Object.fromEntries(Object.entries(v).filter(([k]) => !k.startsWith('_'))));
+    let saved;
     if (editing?.id) {
       update(collection, editing.id, rec);
+      saved = { ...editing, ...rec };
       toast.success(`${cap(noun)} updated`);
     } else {
-      add(collection, rec);
+      saved = add(collection, rec);
       toast.success(`${cap(noun)} added`);
     }
+    onSaved?.(saved, v);
     setEditing(null);
   };
 

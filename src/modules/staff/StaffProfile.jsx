@@ -12,7 +12,7 @@ import { fmtDate, money } from '../../lib/format';
 import { payslip } from '../../lib/payroll';
 import { Card, CardHeader, Badge, Button, KeyValue, FormModal, EmptyState, toast } from '../../components/ui';
 import { staffFields } from './Staff';
-import { photoKey } from '../../data/photos';
+import { photoKey, applyPhotoChange } from '../../data/photos';
 
 export default function StaffProfile() {
   const { id } = useParams();
@@ -119,7 +119,7 @@ export default function StaffProfile() {
           </div>
         </Paper>
       </PrintView>
-      <FormModal open={edit} onClose={() => setEdit(false)} title="Edit staff member" fields={staffFields} initial={s} onSubmit={(v) => { db.update('staff', s.id, v); toast.success('Staff updated'); setEdit(false); }} />
+      <FormModal open={edit} onClose={() => setEdit(false)} title="Edit staff member" fields={staffFields} initial={s} onSubmit={({ _photo, ...v }) => { db.update('staff', s.id, v); applyPhotoChange(photoKey('Staff', s.id), _photo); toast.success('Staff updated'); setEdit(false); }} />
     </>
   );
 }

@@ -1,16 +1,23 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Download, GraduationCap, Users, BedDouble, Bus, Images } from 'lucide-react';
+import { Plus, Download, GraduationCap, Users, BedDouble, Bus } from 'lucide-react';
 import { useDB } from '../../data/store';
 import { useLookups, useBalances, useCurrentUser, sortedClasses, TODAY } from '../../data/selectors';
 import { fullName, age, money, downloadCSV } from '../../lib/format';
 import { SECTIONS } from '../../data/seed';
 import { Button, Badge, Avatar, DataTable, FormModal, PageHeader, Select, StatCard, toast } from '../../components/ui';
-import { photoKey, usePhotos } from '../../data/photos';
-import { BulkPhotoUpload } from '../../components/PhotoEditor';
+import { photoKey, usePhotos, applyPhotoChange } from '../../data/photos';
+import { PhotoField } from '../../components/PhotoEditor';
 
 export function studentFields(classes, parents, routes, dorms) {
   return [
+    {
+      name: '_photo',
+      label: 'Photo',
+      type: 'custom',
+      span: 2,
+      render: (v, set) => <PhotoField value={v._photo} onChange={set} pkey={v.id ? photoKey('Student', v.id) : null} name={[v.firstName, v.lastName].filter(Boolean).join(' ')} />,
+    },
     { name: 'firstName', label: 'First name', required: true },
     { name: 'otherNames', label: 'Other names' },
     { name: 'lastName', label: 'Surname', required: true },
@@ -43,7 +50,6 @@ export default function Students() {
   const [classId, setClassId] = useState('');
   const [status, setStatus] = useState('Active');
   const [form, setForm] = useState(null);
-  const [bulk, setBulk] = useState(false);
   const photos = usePhotos((p) => p.map);
 
   const teacherClassIds = useMemo(() => {
@@ -63,10 +69,11 @@ export default function Students() {
     .filter((c) => (!section || c.section === section) && (!teacherClassIds || teacherClassIds.has(c.id)))
     .map((c) => ({ value: c.id, label: c.name }));
 
-  const save = (v) => {
+  const save = ({ _photo, ...v }) => {
     const seq = db.students.length + 1;
-    db.add('students', { ...v, admissionNo: `BFIS/${TODAY.slice(2, 4)}/${String(seq + 1000).slice(-4)}`, status: v.status || 'Active', nationality: 'Ghanaian', admissionDate: v.admissionDate || TODAY });
-    toast.success('Student added', `${v.firstName} ${v.lastName}`);
+    const rec = db.add('students', { ...v, admissionNo: `BFIS/${TODAY.slice(2, 4)}/${String(seq + 1000).slice(-4)}`, status: v.status || 'Active', nationality: 'Ghanaian', admissionDate: v.admissionDate || TODAY });
+    applyPhotoChange(photoKey('Student', rec.id), _photo);
+    toast.success('Student added', `${v.firstName} ${v.lastName}${_photo ? ' with photo' : ''}`);
     setForm(null);
   };
 
@@ -96,7 +103,6 @@ export default function Students() {
             <Button variant="secondary" icon={Download} onClick={exportCSV}>
               Export
             </Button>
-            {user.role === 'admin' && <Button variant="secondary" icon={Images} onClick={() => setBulk(true)}>Bulk photos</Button>}
             {user.role === 'admin' && (
               <Button icon={Plus} onClick={() => setForm({ gender: 'Female', boarding: 'Day', status: 'Active' })}>
                 Add student
@@ -147,7 +153,6 @@ export default function Students() {
             : []),
         ]}
       />
-      <BulkPhotoUpload open={bulk} onClose={() => setBulk(false)} personType="Student" people={db.students.map((s) => ({ id: s.id, code: s.admissionNo, name: fullName(s) }))} />
       <FormModal open={!!form} onClose={() => setForm(null)} title="Add student" fields={studentFields(db.classes, db.parents, db.routes, db.dorms)} initial={form} onSubmit={save} />
     </>
   );

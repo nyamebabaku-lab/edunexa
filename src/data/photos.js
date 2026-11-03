@@ -102,3 +102,10 @@ export function toSquareJpeg(src, { size = 320, zoom = 1, offsetX = 0, offsetY =
 
 /** Photo key for a signed-in account (parents have no photo). */
 export const userPhotoKey = (u) => (!u?.linkedId || u.role === 'parent' || u.role === 'superadmin' ? null : photoKey(u.role === 'student' ? 'Student' : 'Staff', u.linkedId));
+
+/** Saves, removes or leaves a photo as chosen in a form field (undefined = unchanged). */
+export async function applyPhotoChange(key, value) {
+  if (!key || value === undefined) return;
+  if (value === null) await removePhoto(key);
+  else await savePhoto(key, value);
+}

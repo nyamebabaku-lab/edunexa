@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { create } from 'zustand';
 import { X, Search, ChevronLeft, ChevronRight, ArrowUpDown, CheckCircle2, AlertTriangle, Info, Inbox } from 'lucide-react';
 import { initials } from '../../lib/format';
@@ -244,20 +245,29 @@ export function PageHeader({ title, subtitle, actions, children }) {
 }
 
 // ---------------- Modal ----------------
+// Open modals, newest last: only the top one reacts to Escape, and the page stays locked until all close.
+const modalStack = [];
+
 export function Modal({ open, onClose, title, subtitle, children, footer, size = 'md' }) {
+  const token = useRef({});
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
-    if (!open) return;
-    const h = (e) => e.key === 'Escape' && onClose?.();
+    if (!open) return undefined;
+    const me = token.current;
+    modalStack.push(me);
+    const h = (e) => e.key === 'Escape' && modalStack[modalStack.length - 1] === me && closeRef.current?.();
     window.addEventListener('keydown', h);
     document.body.style.overflow = 'hidden';
     return () => {
       window.removeEventListener('keydown', h);
-      document.body.style.overflow = '';
+      modalStack.splice(modalStack.indexOf(me), 1);
+      if (!modalStack.length) document.body.style.overflow = '';
     };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   const w = { sm: 'sm:max-w-md', md: 'sm:max-w-xl', lg: 'sm:max-w-3xl', xl: 'sm:max-w-5xl' }[size];
-  return (
+  return createPortal(
     <div className="no-print fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <div className="absolute inset-0 bg-navy-950/50 backdrop-blur-sm" onClick={onClose} />
       <div className={cx('relative flex max-h-[92vh] w-full animate-scale-in flex-col rounded-t-3xl bg-white shadow-2xl dark:bg-navy-900 sm:rounded-3xl', w)}>
@@ -271,7 +281,8 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
         <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
         {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-6 py-4 safe-bottom dark:border-white/5">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -455,6 +466,13 @@ export function FormFields({ fields, value, onChange }) {
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {fields.map((f) => {
         if (f.hidden?.(value)) return null;
+        if (f.type === 'custom')
+          return (
+            <div key={f.name} className={f.span === 2 ? 'sm:col-span-2' : ''}>
+              {f.label && <span className="label">{f.label}</span>}
+              {f.render(value, (v) => set(f.name, v))}
+            </div>
+          );
         const common = {
           value: value[f.name] ?? '',
           required: f.required,

@@ -14,7 +14,7 @@ import { EditableAvatar, Portrait } from '../../components/PhotoEditor';
 import { badgeToken } from '../../lib/gate';
 import { studentFields } from './Students';
 import { StudentStatement } from '../finance/shared';
-import { photoKey } from '../../data/photos';
+import { photoKey, applyPhotoChange } from '../../data/photos';
 
 export function ResultsTable({ result, section }) {
   const L = useLookups();
@@ -348,8 +348,9 @@ export default function StudentProfile() {
         title="Edit student"
         fields={studentFields(db.classes, db.parents, db.routes, db.dorms)}
         initial={student}
-        onSubmit={(v) => {
+        onSubmit={({ _photo, ...v }) => {
           db.update('students', student.id, v);
+          applyPhotoChange(photoKey('Student', student.id), _photo);
           toast.success('Student updated');
           setEdit(false);
         }}
