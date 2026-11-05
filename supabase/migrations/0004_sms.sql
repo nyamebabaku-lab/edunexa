@@ -63,18 +63,18 @@ end $$;
 -- What a school's SMS looks like, without the key (Super Admin, or that school's Owner/Admin).
 create or replace function edunexa.school_sms_status(sid uuid default null) returns jsonb
 language plpgsql stable security definer set search_path = edunexa as $$
-declare s sms_settings; id uuid := coalesce(sid, my_school());
+declare s sms_settings; target uuid := coalesce(sid, my_school());
 begin
-  if not (is_super() or is_school_admin(id)) then raise exception 'Not allowed'; end if;
-  select * into s from sms_settings where school_id = id;
+  if not (is_super() or is_school_admin(target)) then raise exception 'Not allowed'; end if;
+  select * into s from sms_settings where school_id = target;
   return jsonb_build_object(
     'configured', s.school_id is not null,
     'enabled', coalesce(s.enabled, false),
     'senderId', s.sender_id,
     'keyHint', case when s.api_key is not null then '••••' || right(s.api_key, 4) end,
     'dailyLimit', s.daily_limit,
-    'sentToday', (select count(*) from sms_log l where l.school_id = id and l.status = 'sent' and l.at > now() - interval '24 hours'),
-    'failedToday', (select count(*) from sms_log l where l.school_id = id and l.status = 'failed' and l.at > now() - interval '24 hours'),
+    'sentToday', (select count(*) from sms_log l where l.school_id = target and l.status = 'sent' and l.at > now() - interval '24 hours'),
+    'failedToday', (select count(*) from sms_log l where l.school_id = target and l.status = 'failed' and l.at > now() - interval '24 hours'),
     'updatedAt', s.updated_at);
 end $$;
 
