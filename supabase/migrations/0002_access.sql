@@ -270,6 +270,7 @@ insert into edunexa.access (role, col, rd, wr) values
   ('kiosk', 'terms', 'all', 'none'),
   ('kiosk', 'classes', 'all', 'none'),
   ('kiosk', 'staff', 'all', 'none'),
+  ('kiosk', 'parents', 'all', 'none'),
   ('kiosk', 'students', 'all', 'none'),
   ('kiosk', 'smsLog', 'none', 'all'),
   ('kiosk', 'clockings', 'all', 'all'),

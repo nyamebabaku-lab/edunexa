@@ -1,6 +1,9 @@
 // Super Admin: every school on EduNexa — approve, suspend, re-activate or delete; plus the platform dashboard.
 import { useNavigate } from 'react-router-dom';
-import { Building2, Check, Ban, CircleCheck, Trash2, Users, Hourglass, School, UserCheck, GraduationCap } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Building2, Check, Ban, CircleCheck, Trash2, Users, Hourglass, School, UserCheck, GraduationCap, MessageSquareText } from 'lucide-react';
+import { SchoolSmsModal } from './SmsSetup';
+import { supabase } from '../../lib/supabase';
 import { useDB } from '../../data/store';
 import { useCurrentUser } from '../../data/selectors';
 import { useLive, setSchoolStatus, deleteSchool } from '../../data/sync';
@@ -23,7 +26,7 @@ function useSchoolRows() {
   return schools.map((s) => ({ ...s, owner: users.find((u) => u.id === s.owner_id), students: stats[s.id]?.students || 0, accounts: stats[s.id]?.accounts || 0, pendingAccounts: users.filter((u) => u.schoolId === s.id && u.status === 'Pending').length }));
 }
 
-function SchoolActions({ s }) {
+function SchoolActions({ s, onSms }) {
   const { busy, run } = useAccountActions();
   const act = (status) => {
     let reason = null;
@@ -43,6 +46,7 @@ function SchoolActions({ s }) {
     <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
       {s.status === 'pending' && <Button size="sm" icon={Check} onClick={() => act('active')}>Approve</Button>}
       {s.status === 'suspended' && <Button size="sm" variant="secondary" icon={CircleCheck} onClick={() => act('active')}>Activate</Button>}
+      {onSms && <IconButton icon={MessageSquareText} label="SMS (mNotify)" onClick={() => onSms(s)} />}
       {s.status === 'active' && <IconButton icon={Ban} label="Suspend school" onClick={() => act('suspended')} />}
       <IconButton icon={Trash2} label="Delete school" tone="soft-red" onClick={remove} />
     </div>
@@ -52,6 +56,12 @@ function SchoolActions({ s }) {
 export default function Schools() {
   const rows = useSchoolRows();
   const navigate = useNavigate();
+  const [smsFor, setSmsFor] = useState(null);
+  const [sms, setSms] = useState({});
+  useEffect(() => {
+    if (smsFor) return;
+    supabase.rpc('sms_overview').then(({ data }) => setSms(data || {}));
+  }, [smsFor]);
   const columns = [
     {
       key: 'name', label: 'School', sort: (s) => s.name,
@@ -69,8 +79,9 @@ export default function Schools() {
     { key: 'students', label: 'Students', sort: (s) => s.students, render: (s) => <span className="font-semibold">{s.students}</span> },
     { key: 'accounts', label: 'Accounts', sort: (s) => s.accounts, render: (s) => <span>{s.accounts}{s.pendingAccounts > 0 && <Badge tone="amber" className="ml-2">{s.pendingAccounts} pending</Badge>}</span> },
     { key: 'created_at', label: 'Registered', hideOnMobile: true, sort: (s) => s.created_at, render: (s) => <span className="text-xs text-slate-500">{fmtDate(s.created_at)}</span> },
+    { key: 'sms', label: 'SMS', hideOnMobile: true, render: (s) => (sms[s.id] ? <Badge tone={sms[s.id].enabled ? 'green' : 'slate'}>{sms[s.id].senderId}</Badge> : <button className="text-xs font-semibold text-brand-600 hover:underline" onClick={(e) => { e.stopPropagation(); setSmsFor(s); }}>Connect</button>) },
     { key: 'status', label: 'Status', sort: (s) => s.status, render: (s) => <Badge tone={TONE[s.status]} dot>{s.status[0].toUpperCase() + s.status.slice(1)}</Badge> },
-    { key: 'actions', label: '', className: 'text-right', render: (s) => <SchoolActions s={s} /> },
+    { key: 'actions', label: '', className: 'text-right', render: (s) => <SchoolActions s={s} onSms={setSmsFor} /> },
   ];
   return (
     <>
@@ -80,6 +91,7 @@ export default function Schools() {
           searchText={(s) => [s.name, s.city, s.code, s.owner?.name, s.owner?.email].join(' ')}
           empty={<EmptyState icon={Building2} title="No schools yet" text="Schools appear here when an owner registers in EduNexa Admin." />} />
       </Card>
+      <SchoolSmsModal school={smsFor} onClose={() => setSmsFor(null)} />
     </>
   );
 }

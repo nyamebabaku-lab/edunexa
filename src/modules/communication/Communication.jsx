@@ -1,3 +1,5 @@
+import { smsAudiences } from '../../lib/sms';
+import { LIVE } from '../../config';
 import { useState } from 'react';
 import { Inbox, Send, Megaphone, MessageSquareText, PenSquare, Pin, Reply, Smartphone } from 'lucide-react';
 import { useDB } from '../../data/store';
@@ -38,14 +40,8 @@ export default function Communication() {
     toast.success('Message sent', `To ${userName(compose.toId)}`);
     setCompose(null);
   };
-  const smsAudiences = {
-    'All Parents': db.parents.length,
-    'All Staff': db.staff.length,
-    'JHS 3 Parents': db.students.filter((s) => L.className(s.classId) === 'JHS 3').length,
-    'SHS Parents': db.students.filter((s) => L.cls(s.classId)?.section === 'SHS').length,
-    'Bus riders’ parents': db.students.filter((s) => s.busRouteId).length,
-    'Boarders’ parents': db.students.filter((s) => s.boarding === 'Boarder').length,
-  };
+  const audiencePhones = smsAudiences(db);
+  const audienceCount = Object.fromEntries(Object.entries(audiencePhones).map(([k, v]) => [k, v.length]));
 
   return (
     <>
@@ -123,16 +119,18 @@ export default function Communication() {
           <Card className="p-5">
             <p className="mb-4 font-bold text-slate-900 dark:text-white">Send bulk SMS</p>
             <div className="space-y-4">
-              <Field label="Audience"><Select value={sms.audience} onChange={(e) => setSms({ ...sms, audience: e.target.value })} options={Object.entries(smsAudiences).map(([k, v]) => ({ value: k, label: `${k} (${v})` }))} /></Field>
+              <Field label="Audience"><Select value={sms.audience} onChange={(e) => setSms({ ...sms, audience: e.target.value })} options={Object.entries(audienceCount).map(([k, v]) => ({ value: k, label: `${k} (${v})` }))} /></Field>
               <Field label="Message" hint={`${sms.message.length}/160 characters · ${Math.max(1, Math.ceil(sms.message.length / 160))} SMS each`}>
                 <Textarea value={sms.message} onChange={(e) => setSms({ ...sms, message: e.target.value })} placeholder="BFIS: …" />
               </Field>
               <Button className="w-full" icon={Send} onClick={() => {
                 if (!sms.message.trim()) return toast.error('Type a message');
-                db.add('smsLog', { date: nowISO(), audience: sms.audience, message: sms.message, recipients: smsAudiences[sms.audience], status: 'Delivered' });
-                toast.success('SMS sent', `${smsAudiences[sms.audience]} recipients`);
+                const to = audiencePhones[sms.audience] || [];
+                if (!to.length) return toast.error('No phone numbers', 'Nobody in this group has a phone number saved');
+                db.add('smsLog', { date: nowISO(), audience: sms.audience, message: sms.message, to, recipients: to.length, status: 'Delivered' });
+                toast.success(LIVE ? 'Sending SMS' : 'SMS sent', `${to.length} recipients`);
                 setSms({ ...sms, message: '' });
-              }}>Send to {smsAudiences[sms.audience]} recipients</Button>
+              }} disabled={!audienceCount[sms.audience]}>Send to {audienceCount[sms.audience] || 0} recipients</Button>
               <p className="text-xs text-slate-400">Demo mode: messages are logged, not actually delivered. Connect an SMS provider (e.g. Hubtel, Arkesel) in production.</p>
             </div>
           </Card>
@@ -140,8 +138,13 @@ export default function Communication() {
             { key: 'date', label: 'Sent', render: (s) => fmtDateTime(s.date) },
             { key: 'audience', label: 'Audience', render: (s) => <span className="font-semibold">{s.audience}</span> },
             { key: 'message', label: 'Message', render: (s) => <span className="line-clamp-2 max-w-md whitespace-normal text-xs text-slate-500">{s.message}</span> },
-            { key: 'recipients', label: 'To' },
-            { key: 'status', label: 'Status', render: (s) => <Badge tone="green">{s.status}</Badge> },
+            { key: 'recipients', label: 'To', render: (s) => (s.delivered != null && s.delivered !== s.recipients ? `${s.delivered}/${s.recipients}` : s.recipients) },
+            { key: 'status', label: 'Status', render: (s) => (
+              <div className="max-w-[220px] whitespace-normal">
+                <Badge tone={{ Delivered: 'green', Failed: 'red', Sending: 'blue', Queued: 'amber' }[s.status] || 'slate'}>{s.status}</Badge>
+                {s.error && <p className="mt-1 text-[11px] leading-snug text-accent-600">{s.error}</p>}
+              </div>
+            ) },
           ]} />
         </div>
       )}

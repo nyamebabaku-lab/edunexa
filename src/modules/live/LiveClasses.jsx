@@ -1,3 +1,4 @@
+import { parentPhones } from '../../lib/sms';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Video, Radio, Copy, Users, CalendarClock, KeyRound, Send, Trash2, Clock, History, WifiOff } from 'lucide-react';
@@ -46,7 +47,8 @@ export default function LiveClasses() {
   const notify = (s) => {
     const cls = L.cls(s.classId);
     db.add('notices', { title: `Live class: ${s.title}`, body: `${cls?.name} ${L.subjectName(s.subjectId)} live class on ${fmtDate(s.date, 'EEEE d MMMM')} at ${s.start}. Open Live Classes in the app to join, or use class code ${s.code}.`, audience: 'Students', priority: 'Normal', date: TODAY, authorId: s.teacherId, pinned: false });
-    db.add('smsLog', { date: nowISO(), audience: `Parents · ${cls?.name}`, message: `${db.settings.schoolName}: ${cls?.name} ${L.subjectName(s.subjectId)} live class ${fmtDate(s.date, 'd MMM')} ${s.start}. Class code ${s.code}.`, recipients: db.students.filter((x) => x.classId === s.classId).length, status: 'Delivered' });
+    const to = parentPhones(db, db.students.filter((x) => x.classId === s.classId && x.status === 'Active'));
+    if (to.length) db.add('smsLog', { date: nowISO(), audience: `Parents · ${cls?.name}`, message: `${db.settings.schoolName}: ${cls?.name} ${L.subjectName(s.subjectId)} live class ${fmtDate(s.date, 'd MMM')} ${s.start}. Class code ${s.code}.`, to, recipients: to.length, status: 'Delivered' });
     toast.success('Class notified', 'Notice posted and parents texted');
   };
   const join = () => {

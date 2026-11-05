@@ -66,6 +66,8 @@ export const useDB = create(
         if (!allowed(col)) return rec;
         // Texts created while offline wait in the queue and go out when the connection returns.
         if (col === 'smsLog' && typeof navigator !== 'undefined' && !navigator.onLine) rec.status = 'Queued';
+        // Live apps: texts really go out through the school's mNotify account (see sync.js).
+        if (col === 'smsLog' && LIVE) rec.status = 'Sending';
         set((s) => ({ [col]: [rec, ...s[col]] }));
         send({ type: 'put', col, rec });
         return rec;

@@ -1,3 +1,4 @@
+import { parentPhones } from '../../lib/sms';
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCheck, Save, Send, ClipboardCheck, UserX, Clock, Users } from 'lucide-react';
 import { useDB } from '../../data/store';
@@ -41,7 +42,9 @@ export default function Attendance() {
   const notify = () => {
     const absent = students.filter((s) => marks[s.id] === 'A');
     if (!absent.length) return toast.info('No absentees to notify');
-    db.add('smsLog', { date: nowISO(), audience: `Parents of absentees · ${L.className(classId)}`, message: `BFIS: Your ward was marked ABSENT today (${fmtDate(date)}). Kindly contact the class teacher.`, recipients: absent.length, status: 'Delivered' });
+    const to = parentPhones(db, absent);
+    if (!to.length) return toast.error('No phone numbers', 'None of these parents has a phone number saved');
+    db.add('smsLog', { date: nowISO(), audience: `Parents of absentees · ${L.className(classId)}`, message: `${db.settings.schoolName}: Your ward was marked ABSENT today (${fmtDate(date)}). Kindly contact the class teacher.`, to, recipients: to.length, status: 'Delivered' });
     toast.success('SMS sent', `${absent.length} parent(s) notified`);
   };
 

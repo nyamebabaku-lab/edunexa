@@ -1,3 +1,4 @@
+import { LIVE } from '../config';
 // Offline & slow-network support: connectivity state, queued outbound messages,
 // durable storage and the "install app" prompt.
 import { useEffect, useState } from 'react';
@@ -36,6 +37,7 @@ export const useInstall = create(() => ({ prompt: null, installed: false, persis
 
 /** Sends anything queued while offline. Returns how many items were sent. */
 export function flushQueue() {
+  if (LIVE) return 0; // the live apps send queued texts through sync.js
   const db = useDB.getState();
   const queued = db.smsLog.filter((m) => m.status === 'Queued');
   queued.forEach((m) => db.update('smsLog', m.id, { status: 'Delivered', sentAt: nowISO() }));

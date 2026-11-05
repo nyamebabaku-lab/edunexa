@@ -210,9 +210,17 @@ const queueWrite = (op) => {
   // A newer change to the same record replaces an unsent older one.
   if (entry.type !== 'settings') outbox = outbox.filter((o) => !(o.col === entry.col && o.id === entry.id));
   outbox.push(entry);
+  // A new text message: once the record is on the server, ask the server to send it.
+  if (entry.type === 'put' && entry.col === 'smsLog' && entry.data.status === 'Sending') outbox.push({ type: 'sms', col: 'smsLog', smsId: entry.id });
   saveOutbox();
   flushSoon();
 };
+
+/** Puts the server's answer (Delivered / Failed …) on the local copy without queueing another write. */
+function markSms(id, patch) {
+  const list = useDB.getState().smsLog;
+  useDB.setState({ smsLog: list.map((m) => (m.id === id ? { ...m, ...patch } : m)) });
+}
 
 let flushTimer = null;
 let flushing = false;
@@ -242,6 +250,21 @@ export async function flush() {
       try {
         if (head.type === 'put') {
           must(await supabase.from('records').upsert(batch.map((o) => ({ school_id: profile.school_id, col: o.col, id: o.id, data: o.data })), { onConflict: 'school_id,col,id' }));
+        } else if (head.type === 'sms') {
+          const { data, error } = await supabase.functions.invoke('edunexa-sms', { body: { smsId: head.smsId } });
+          if (error) {
+            // Network trouble or the function is unreachable: keep it and try again later.
+            if (!error.context || error.name === 'FunctionsFetchError') throw new Error('No internet connection');
+            let info = {};
+            try { info = await error.context.json(); } catch { /* not JSON */ }
+            if (info.retry) throw new Error('No internet connection');
+            markSms(head.smsId, { status: 'Failed', error: info.error || error.message });
+            toast.error('SMS not sent', info.error || error.message);
+          } else {
+            markSms(head.smsId, { status: data.status, delivered: data.delivered, error: data.error || null, sentAt: new Date().toISOString() });
+            if (data.status === 'Failed') toast.error('SMS not sent', data.error || 'mNotify did not accept the message');
+            else if (data.skipped) toast.info('Some numbers skipped', `${data.skipped} number(s) are not parents or staff of this school`);
+          }
         } else if (head.type === 'del') {
           must(await supabase.from('records').delete().match({ school_id: profile.school_id, col: head.col, id: head.id }));
         } else {
@@ -252,7 +275,7 @@ export async function flush() {
         saveOutbox();
       } catch (e) {
         const msg = friendly(e.message);
-        if (msg === 'No internet connection') break;
+        if (msg === 'No internet connection' || msg === 'Failed to send a request to the Edge Function') break;
         outbox = outbox.slice(batch.length);
         saveOutbox();
         toast.error('Not saved', msg);

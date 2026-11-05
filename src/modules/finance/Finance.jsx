@@ -1,3 +1,5 @@
+import { parentPhones } from '../../lib/sms';
+import { LIVE } from '../../config';
 import { useMemo, useState } from 'react';
 import { Plus, Printer, Send, FileStack, Wallet, AlertCircle, FileText, Receipt, Download, Trash2, Save } from 'lucide-react';
 import { useDB } from '../../data/store';
@@ -162,8 +164,10 @@ function Arrears() {
     .filter((r) => r.balance > 0);
   const remind = async () => {
     if (!(await confirmDialog('Send SMS reminders?', `Send a fee reminder to ${rows.length} parent(s).`, { danger: false, confirmLabel: 'Send SMS' }))) return;
-    db.add('smsLog', { date: nowISO(), audience: `Parents with arrears${classId ? ` · ${L.className(classId)}` : ''}`, message: `${db.settings.schoolName}: Dear parent, kindly settle your ward's outstanding fees. Pay via MoMo merchant code 778899. Thank you.`, recipients: rows.length, status: 'Delivered' });
-    toast.success('Reminders sent', `${rows.length} SMS delivered`);
+    const to = parentPhones(db, rows.map((r) => r.s));
+    if (!to.length) return toast.error('No phone numbers', 'None of these parents has a phone number saved');
+    db.add('smsLog', { date: nowISO(), audience: `Parents with arrears${classId ? ` · ${L.className(classId)}` : ''}`, message: `${db.settings.schoolName}: Dear parent, kindly settle your ward's outstanding fees${LIVE ? '' : '. Pay via MoMo merchant code 778899'}. Thank you.`, to, recipients: to.length, status: 'Delivered' });
+    toast.success(LIVE ? 'Sending reminders' : 'Reminders sent', `${to.length} parent(s)`);
   };
   return (
     <>

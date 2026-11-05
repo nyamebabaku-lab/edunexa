@@ -1,3 +1,5 @@
+import { SchoolSmsCard } from '../accounts/SmsSetup';
+import { MessageSquareText } from 'lucide-react';
 import { LIVE } from '../../config';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -345,6 +347,7 @@ export default function Settings() {
     { value: 'academic', label: 'Academic year', icon: CalendarRange },
     { value: 'gate', label: 'Gate attendance', icon: DoorOpen },
     { value: 'live', label: 'Live classes', icon: Video },
+    ...(LIVE && user.role === 'admin' ? [{ value: 'sms', label: 'SMS', icon: MessageSquareText }] : []),
     ...(isSuper ? [{ value: 'modules', label: 'Modules', icon: Blocks }] : []),
     ...(isSuper && !LIVE ? [{ value: 'security', label: 'Login & security', icon: LockKeyhole }] : []),
     ...(LIVE ? [] : [{ value: 'users', label: 'Users', icon: Users, count: db.users.filter((u) => u.status === 'Pending').length || undefined }]),
@@ -493,6 +496,7 @@ export default function Settings() {
       )}
 
       {tab === 'security' && <Security s={s} setS={setS} />}
+      {tab === 'sms' && <div className="max-w-2xl"><SchoolSmsCard myPhone={user.phone} /></div>}
       {tab === 'users' && <UsersTab />}
 
       {tab === 'grading' && (

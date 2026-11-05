@@ -104,7 +104,7 @@ export const ACCESS = {
 
   kiosk: (() => {
     const m = {};
-    grant(m, ['students', 'staff', 'photos', 'classes', 'terms'], 'all');
+    grant(m, ['students', 'staff', 'photos', 'classes', 'terms', 'parents'], 'all'); // parents: phone for arrival texts
     grant(m, ['clockings'], 'all', 'all');
     grant(m, ['smsLog'], 'none', 'all');
     return m;

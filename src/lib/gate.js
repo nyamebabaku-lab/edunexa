@@ -77,7 +77,7 @@ export function clock(personType, personId, method) {
       if (s.gate.autoRegister) markRegister(person, late ? 'L' : 'P');
       if (s.gate.notifyParents) {
         const parent = db.parents.find((p) => p.id === person.parentId);
-        db.add('smsLog', { date: nowISO(), audience: `Parent of ${name}`, message: `${s.schoolName}: ${person.firstName} arrived at school at ${time}${late ? ' (late)' : ''}.`, recipients: parent ? 1 : 0, status: 'Delivered' });
+        if (parent?.phone) db.add('smsLog', { date: nowISO(), audience: `Parent of ${name}`, message: `${s.schoolName}: ${person.firstName} arrived at school at ${time}${late ? ' (late)' : ''}.`, to: [parent.phone], recipients: 1, status: 'Delivered' });
       }
     }
     return { action: 'in', record, name, late };
@@ -86,7 +86,8 @@ export function clock(personType, personId, method) {
   if (existing.inAt && Date.now() - new Date(existing.inAt).getTime() < 60_000) return { action: 'repeat', record: existing, name };
   db.update('clockings', id, { out: time, outMethod: method });
   if (personType === 'Student' && s.gate.notifyParents) {
-    db.add('smsLog', { date: nowISO(), audience: `Parent of ${name}`, message: `${s.schoolName}: ${person.firstName} left school at ${time}.`, recipients: 1, status: 'Delivered' });
+    const parent = db.parents.find((p) => p.id === person.parentId);
+    if (parent?.phone) db.add('smsLog', { date: nowISO(), audience: `Parent of ${name}`, message: `${s.schoolName}: ${person.firstName} left school at ${time}.`, to: [parent.phone], recipients: 1, status: 'Delivered' });
   }
   return { action: 'out', record: { ...existing, out: time }, name };
 }
