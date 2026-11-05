@@ -30,3 +30,4 @@ docs/tutorial/*.mp4
 .env.local
 # Native build output
 build/
+dist-apk/
