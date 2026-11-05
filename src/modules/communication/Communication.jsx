@@ -13,7 +13,7 @@ export default function Communication() {
   const db = useDB();
   const user = useCurrentUser();
   const L = useLookups();
-  const isAdmin = user.role === 'admin';
+  const isAdmin = (user.role === 'admin' || user.role === 'headteacher');
   const canSms = ['admin', 'accountant'].includes(user.role);
   const [tab, setTab] = useState('inbox');
   const [openMsg, setOpenMsg] = useState(null);

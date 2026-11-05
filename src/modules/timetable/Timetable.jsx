@@ -61,7 +61,7 @@ export default function Timetable() {
           <>
             {isTeacher && <Tabs value={mode} onChange={setMode} tabs={[{ value: 'mine', label: 'My schedule' }, { value: 'class', label: 'By class' }]} />}
             {!portal && mode === 'class' && <Select className="!w-48" value={classId} onChange={(e) => { setClassId(e.target.value); setEditing(false); }} options={sortedClasses(db.classes).map((c) => ({ value: c.id, label: c.name }))} />}
-            {user.role === 'admin' && mode === 'class' && (
+            {(user.role === 'admin' || user.role === 'headteacher') && mode === 'class' && (
               <Button variant={editing ? 'primary' : 'secondary'} icon={editing ? Check : Pencil} onClick={() => { if (editing) toast.success('Timetable saved'); setEditing(!editing); }}>
                 {editing ? 'Done' : 'Edit'}
               </Button>

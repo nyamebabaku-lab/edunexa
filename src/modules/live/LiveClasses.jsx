@@ -22,12 +22,12 @@ export default function LiveClasses() {
   const [code, setCode] = useState('');
   const [detail, setDetail] = useState(null);
   const net = useNetwork();
-  const isStaff = ['admin', 'superadmin', 'teacher'].includes(user.role);
+  const isStaff = ['admin', 'superadmin', 'headteacher', 'teacher'].includes(user.role);
   const isTeacher = user.role === 'teacher';
 
   const alloc = db.allocations.filter((a) => !isTeacher || a.teacherId === user.linkedId);
   const myClassIds = new Set(isStaff ? alloc.map((a) => a.classId) : student ? [student.classId] : []);
-  const visible = db.liveSessions.filter((s) => (user.role === 'admin' || user.role === 'superadmin' ? true : isTeacher ? s.teacherId === user.linkedId || myClassIds.has(s.classId) : myClassIds.has(s.classId)));
+  const visible = db.liveSessions.filter((s) => (['admin', 'headteacher', 'superadmin'].includes(user.role) ? true : isTeacher ? s.teacherId === user.linkedId || myClassIds.has(s.classId) : myClassIds.has(s.classId)));
   const withStatus = visible.map((s) => ({ ...s, st: sessionStatus(s) })).sort((a, b) => `${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`));
   const upcoming = withStatus.filter((s) => !['Ended', 'Missed'].includes(s.st));
   const past = withStatus.filter((s) => ['Ended', 'Missed'].includes(s.st)).reverse();

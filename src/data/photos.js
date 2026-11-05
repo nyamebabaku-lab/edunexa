@@ -1,8 +1,10 @@
 // Student & staff photos. They live in IndexedDB (much larger than localStorage) and are
 // mirrored into a small in-memory store so components re-render when a photo changes.
 import { create } from 'zustand';
+import { hooks } from './store';
+import { storeKey } from '../config';
 
-const DB_NAME = 'edunexa-media';
+const DB_NAME = storeKey('edunexa-media');
 const STORE = 'photos';
 
 let dbp;
@@ -52,13 +54,22 @@ export async function loadPhotos() {
 const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('edunexa-photos') : null;
 channel?.addEventListener('message', () => loadPhotos());
 
-export async function savePhoto(key, dataUrl) {
+export async function savePhoto(key, dataUrl, { local = false } = {}) {
+  // Live apps: the photo is shared through the server so every device sees it.
+  if (!local && hooks.allow) {
+    if (!hooks.allow('photos')) return;
+    hooks.write({ type: 'put', col: 'photos', rec: { id: key, url: dataUrl } });
+  }
   await tx('readwrite', (s) => s.put(dataUrl, key));
   usePhotos.setState((st) => ({ map: { ...st.map, [key]: dataUrl } }));
   channel?.postMessage('changed');
 }
 
-export async function removePhoto(key) {
+export async function removePhoto(key, { local = false } = {}) {
+  if (!local && hooks.allow) {
+    if (!hooks.allow('photos')) return;
+    hooks.write({ type: 'del', col: 'photos', id: key });
+  }
   await tx('readwrite', (s) => s.delete(key));
   usePhotos.setState((st) => {
     const map = { ...st.map };
@@ -71,6 +82,25 @@ export async function removePhoto(key) {
 export async function clearPhotos() {
   await tx('readwrite', (s) => s.clear());
   usePhotos.setState({ map: {} });
+}
+
+/** Photos from the server: replaces the local set (or merges one change when `merge`). null removes. */
+export async function setServerPhotos(map, merge = false) {
+  const current = usePhotos.getState().map;
+  const next = merge ? { ...current } : {};
+  Object.entries(map).forEach(([k, v]) => {
+    if (v) next[k] = v;
+    else delete next[k];
+  });
+  usePhotos.setState({ map: next, ready: true });
+  try {
+    await tx('readwrite', (s) => {
+      if (!merge) s.clear();
+      Object.entries(map).forEach(([k, v]) => (v ? s.put(v, k) : s.delete(k)));
+    });
+  } catch {
+    /* cache only */
+  }
 }
 
 export const usePhoto = (key) => usePhotos((s) => (key ? s.map[key] : null));

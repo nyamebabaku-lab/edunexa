@@ -14,7 +14,7 @@ export default function CalendarPage() {
   const user = useCurrentUser();
   const [month, setMonth] = useState(startOfMonth(parseISO(TODAY)));
   const [form, setForm] = useState(null);
-  const isAdmin = user.role === 'admin';
+  const isAdmin = (user.role === 'admin' || user.role === 'headteacher');
   const start = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
   const end = endOfWeek(endOfMonth(month), { weekStartsOn: 1 });
   const days = [];

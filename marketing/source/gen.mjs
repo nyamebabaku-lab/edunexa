@@ -6,8 +6,8 @@ const React = req('react');
 const { renderToStaticMarkup } = req('react-dom/server');
 const L = req('lucide-react');
 const QR = req('qrcode');
-const URL_ = 'https://nyamebabaku-lab.github.io/edunexa/';
-const URL_TXT = 'nyamebabaku-lab.github.io/edunexa';
+const URL_ = 'https://nyamebabaku-lab.github.io/edunexa/demo/';
+const URL_TXT = 'nyamebabaku-lab.github.io/edunexa/demo';
 const ic = (name, size = 40, sw = 2, cls = '') => renderToStaticMarkup(React.createElement(L[name], { size, strokeWidth: sw, className: cls }));
 const qr = await QR.toString(URL_, { type: 'svg', margin: 0, color: { dark: '#0a1330', light: '#ffffff' } });
 

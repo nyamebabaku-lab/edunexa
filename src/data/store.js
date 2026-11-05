@@ -2,8 +2,33 @@
 // so swapping localStorage for a cloud backend later only touches this file.
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { buildSeed } from './seed';
+import { DEFAULT_SETTINGS_EXT } from './seed';
+import { buildSeed } from './demoSeed';
 import { uid } from '../lib/format';
+import { LIVE, storeKey } from '../config';
+import { COLLECTIONS, KV_COLLECTIONS } from '../lib/access';
+
+// Live apps: sync.js plugs in here. `allow(col)` vetoes writes the signed-in role may not make;
+// `write(op)` queues each change for the server. The demo leaves both empty and stays in the browser.
+export const hooks = { allow: null, write: null };
+const allowed = (col) => !hooks.allow || hooks.allow(col);
+const send = (op) => hooks.write?.(op);
+
+/** A school with no records yet (live apps start from this, never from demo data). */
+export function emptyState() {
+  const out = { users: [] };
+  COLLECTIONS.filter((c) => !KV_COLLECTIONS.includes(c) && c !== 'photos').forEach((c) => (out[c] = []));
+  Object.assign(out, { timetable: {}, reportRemarks: {}, canteenMenu: {}, boardingFee: 0, expenseCategories: [] });
+  out.meta = { version: 1, live: true };
+  out.settings = {
+    ...structuredClone(DEFAULT_SETTINGS_EXT),
+    schoolName: '', motto: '', address: '', phone: '', email: '', website: '', academicYear: '', currentTerm: '',
+    currency: 'GHS', headName: '', libraryFinePerDay: 1, loanDays: 14,
+    auth: { ...DEFAULT_SETTINGS_EXT.auth, mode: 'live' },
+    gate: { ...DEFAULT_SETTINGS_EXT.gate, secret: '' },
+  };
+  return out;
+}
 
 const PREFIX = {
   students: 'stu', parents: 'par', staff: 'stf', applications: 'app', classes: 'cls', subjects: 'sub', invoices: 'inv',
@@ -34,39 +59,87 @@ const safeStorage = {
 export const useDB = create(
   persist(
     (set, get) => ({
-      ...buildSeed(),
+      ...(LIVE ? emptyState() : buildSeed()),
 
       add: (col, item) => {
         const rec = { id: item.id || uid(PREFIX[col] || 'rec'), ...item };
+        if (!allowed(col)) return rec;
         // Texts created while offline wait in the queue and go out when the connection returns.
         if (col === 'smsLog' && typeof navigator !== 'undefined' && !navigator.onLine) rec.status = 'Queued';
         set((s) => ({ [col]: [rec, ...s[col]] }));
+        send({ type: 'put', col, rec });
         return rec;
       },
       addMany: (col, items) => {
         const recs = items.map((it) => ({ id: it.id || uid(PREFIX[col] || 'rec'), ...it }));
+        if (!allowed(col)) return recs;
         set((s) => ({ [col]: [...recs, ...s[col]] }));
+        recs.forEach((rec) => send({ type: 'put', col, rec }));
         return recs;
       },
-      update: (col, id, patch) =>
-        set((s) => ({ [col]: s[col].map((x) => (x.id === id ? { ...x, ...(typeof patch === 'function' ? patch(x) : patch) } : x)) })),
-      upsert: (col, rec) =>
+      update: (col, id, patch) => {
+        if (!allowed(col)) return;
+        set((s) => ({ [col]: s[col].map((x) => (x.id === id ? { ...x, ...(typeof patch === 'function' ? patch(x) : patch) } : x)) }));
+        const rec = get()[col].find((x) => x.id === id);
+        if (rec) send({ type: 'put', col, rec });
+      },
+      upsert: (col, rec) => {
+        if (!allowed(col)) return;
         set((s) => {
           const exists = s[col].some((x) => x.id === rec.id);
           return { [col]: exists ? s[col].map((x) => (x.id === rec.id ? { ...x, ...rec } : x)) : [rec, ...s[col]] };
-        }),
-      remove: (col, id) => set((s) => ({ [col]: s[col].filter((x) => x.id !== id) })),
-      setKey: (key, value) => set((s) => ({ [key]: typeof value === 'function' ? value(s[key]) : value })),
-      updateSettings: (patch) => set((s) => ({ settings: { ...s.settings, ...patch } })),
-      resetDemo: () => set(buildSeed()),
+        });
+        send({ type: 'put', col, rec: get()[col].find((x) => x.id === rec.id) });
+      },
+      /** Adds or merges many records in one go (used by the Excel import). */
+      bulkUpsert: (col, recs) => {
+        if (!recs.length || !allowed(col)) return;
+        const byId = new Map(recs.map((r) => [r.id, r]));
+        set((s) => {
+          const seen = new Set();
+          const merged = s[col].map((x) => {
+            const r = byId.get(x.id);
+            if (!r) return x;
+            seen.add(x.id);
+            return { ...x, ...r };
+          });
+          return { [col]: [...recs.filter((r) => !seen.has(r.id)), ...merged] };
+        });
+        const now = new Map(get()[col].map((x) => [x.id, x]));
+        recs.forEach((r) => send({ type: 'put', col, rec: now.get(r.id) }));
+      },
+      remove: (col, id) => {
+        if (!allowed(col)) return;
+        set((s) => ({ [col]: s[col].filter((x) => x.id !== id) }));
+        send({ type: 'del', col, id });
+      },
+      setKey: (key, value) => {
+        if (!allowed(key)) return;
+        const before = get()[key];
+        set((s) => ({ [key]: typeof value === 'function' ? value(s[key]) : value }));
+        const after = get()[key];
+        if (KV_COLLECTIONS.includes(key)) return send({ type: 'kv', col: key, value: after });
+        if (Array.isArray(after)) {
+          // Whole-list edits (e.g. fee structures): save what changed, delete what was removed.
+          const keep = new Set(after.map((x) => x.id));
+          after.forEach((rec) => send({ type: 'put', col: key, rec }));
+          (before || []).filter((x) => !keep.has(x.id)).forEach((x) => send({ type: 'del', col: key, id: x.id }));
+        }
+      },
+      updateSettings: (patch) => {
+        if (!allowed('settings')) return;
+        set((s) => ({ settings: { ...s.settings, ...patch } }));
+        send({ type: 'settings', patch });
+      },
+      resetDemo: () => set(LIVE ? emptyState() : buildSeed()),
       get: (col, id) => get()[col].find((x) => x.id === id),
     }),
     {
-      name: 'edunexa-db',
+      name: storeKey('edunexa-db'),
       version: 4,
       // Newer versions add collections, accounts and settings; bring them in without touching saved data.
       migrate: (persisted, version) => {
-        if (version >= 4 || !persisted) return persisted;
+        if (version >= 4 || !persisted || LIVE) return persisted;
         const seed = buildSeed();
         const out = { ...persisted };
         Object.keys(seed).forEach((k) => {
@@ -107,6 +180,6 @@ export const useSession = create(
       setChild: (childId) => set({ childId }),
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
     }),
-    { name: 'edunexa-session' },
+    { name: storeKey('edunexa-session') },
   ),
 );

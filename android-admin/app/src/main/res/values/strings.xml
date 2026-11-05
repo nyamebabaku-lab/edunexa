@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">EduNexa Admin</string>
+    <string name="title_activity_main">EduNexa Admin</string>
+    <string name="package_name">com.edunexa.admin</string>
+    <string name="custom_url_scheme">com.edunexa.admin</string>
+</resources>

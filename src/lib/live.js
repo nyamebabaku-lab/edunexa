@@ -34,4 +34,4 @@ export function sessionStatus(s, now = new Date()) {
   return 'Scheduled';
 }
 
-export const canHost = (user, session) => user && (user.role === 'admin' || user.role === 'superadmin' || (session && user.linkedId === session.teacherId));
+export const canHost = (user, session) => user && (user.role === 'admin' || user.role === 'headteacher' || user.role === 'superadmin' || (session && user.linkedId === session.teacherId));

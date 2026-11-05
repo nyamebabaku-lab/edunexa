@@ -1,10 +1,13 @@
 import { useEffect, useState, Suspense } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Search, Moon, Sun, Bell, LogOut, Menu, X, ChevronsLeft, ChevronsRight, Repeat, ChevronDown, Loader2 } from 'lucide-react';
+import { Search, Moon, Sun, Bell, LogOut, Menu, X, ChevronsLeft, ChevronsRight, Repeat, ChevronDown, Loader2, KeyRound } from 'lucide-react';
 import { useDB, useSession } from '../../data/store';
 import { useCurrentUser, usePortalStudent } from '../../data/selectors';
 import { navFor, navItem, MOBILE_TABS, ROLES } from '../../lib/permissions';
-import { Avatar, cx, toast } from '../ui';
+import { Avatar, cx, toast, Modal, Button, Field, Input, Spinner } from '../ui';
+import { LIVE } from '../../config';
+import { useLive, signOut } from '../../data/sync';
+import { supabase, friendly } from '../../lib/supabase';
 import CommandPalette from './CommandPalette';
 import { OfflineBanner, SlowChip } from '../NetworkBanner';
 import Logo from './Logo';
@@ -40,11 +43,12 @@ function SidebarNav({ role, collapsed, onNavigate }) {
 
 function SchoolBadge({ collapsed }) {
   const settings = useDB((s) => s.settings);
-  if (collapsed) return null;
+  const role = useCurrentUser()?.role;
+  if (collapsed || role === 'superadmin') return null;
   return (
     <div className="mx-3 mb-4 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 p-4 text-white shadow-lg shadow-brand-900/40">
       <p className="text-[10px] font-bold uppercase tracking-widest text-brand-200">Current term</p>
-      <p className="mt-1 text-sm font-bold">{settings.academicYear} · Term {settings.currentTerm.slice(-1)}</p>
+      <p className="mt-1 text-sm font-bold">{settings.currentTerm ? `${settings.academicYear} · Term ${settings.currentTerm.slice(-1)}` : 'Not set yet'}</p>
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/20">
         <div className="h-full w-[58%] rounded-full bg-accent-500" />
       </div>
@@ -76,6 +80,35 @@ function ChildSwitcher() {
   );
 }
 
+function SyncStatus() {
+  const { pending, syncing, lastSync } = useLive();
+  return (
+    <p className={cx('mt-2 flex items-center gap-1.5 text-[11px] font-medium', pending ? 'text-amber-600' : 'text-emerald-600')}>
+      {syncing ? <Spinner className="h-3 w-3" /> : <span className={cx('h-1.5 w-1.5 rounded-full', pending ? 'bg-amber-500' : 'bg-emerald-500')} />}
+      {pending ? `${pending} change${pending === 1 ? '' : 's'} waiting to upload` : `Synced${lastSync ? ` ${new Date(lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}`}
+    </p>
+  );
+}
+
+function ChangePassword({ open, onClose }) {
+  const [pw, setPw] = useState('');
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    setBusy(true);
+    const { error } = await supabase.auth.updateUser({ password: pw });
+    setBusy(false);
+    if (error) return toast.error('Not changed', friendly(error.message));
+    toast.success('Password changed');
+    setPw('');
+    onClose();
+  };
+  return (
+    <Modal open={open} onClose={onClose} title="Change password" footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button icon={busy ? Spinner : KeyRound} disabled={busy || pw.length < 8 || !/\d/.test(pw)} onClick={save}>Save</Button></>}>
+      <Field label="New password" hint="At least 8 characters, including a number"><Input type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" /></Field>
+    </Modal>
+  );
+}
+
 export default function AppShell() {
   const user = useCurrentUser();
   const { dark, toggleDark, logout, sidebarCollapsed, toggleSidebar } = useSession();
@@ -84,6 +117,7 @@ export default function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
   const loc = useLocation();
   const navigate = useNavigate();
 
@@ -214,11 +248,18 @@ export default function AppShell() {
                         <p className="font-semibold text-slate-900 dark:text-white">{user.name}</p>
                         <p className="truncate text-xs text-slate-500">{user.email}</p>
                         <p className="mt-1 text-[11px] text-slate-400">{settings.schoolName}</p>
+                        {LIVE && <SyncStatus />}
                       </div>
-                      <button onClick={logout} className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5">
-                        <Repeat className="h-4 w-4" /> Switch role
-                      </button>
-                      <button onClick={logout} className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-accent-600 hover:bg-accent-50 dark:hover:bg-accent-500/10">
+                      {LIVE ? (
+                        <button onClick={() => { setMenuOpen(false); setPwOpen(true); }} className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5">
+                          <KeyRound className="h-4 w-4" /> Change password
+                        </button>
+                      ) : (
+                        <button onClick={logout} className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5">
+                          <Repeat className="h-4 w-4" /> Switch role
+                        </button>
+                      )}
+                      <button onClick={LIVE ? signOut : logout} className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-accent-600 hover:bg-accent-50 dark:hover:bg-accent-500/10">
                         <LogOut className="h-4 w-4" /> Sign out
                       </button>
                     </div>
@@ -252,6 +293,7 @@ export default function AppShell() {
         </div>
       </nav>
 
+      {LIVE && <ChangePassword open={pwOpen} onClose={() => setPwOpen(false)} />}
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   );

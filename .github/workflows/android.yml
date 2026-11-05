@@ -1,0 +1,65 @@
+name: Build Android apps
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android
+  cancel-in-progress: true
+
+jobs:
+  apks:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+      VERSION_CODE: ${{ github.run_number }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+
+      - name: Restore signing key
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > $RUNNER_TEMP/upload.p12
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/upload.p12" >> $GITHUB_ENV
+
+      - name: EduNexa (teachers, parents, students and staff)
+        run: |
+          VITE_APP=main OUT_DIR=build/main npx vite build
+          APP=main npx cap sync android
+          cd android && chmod +x gradlew && ./gradlew --no-daemon assembleRelease bundleRelease
+          cp app/build/outputs/apk/release/app-release.apk ../EduNexa.apk
+          cp app/build/outputs/bundle/release/app-release.aab ../EduNexa.aab
+
+      - name: EduNexa Admin (school owners and Super Admin)
+        run: |
+          VITE_APP=admin OUT_DIR=build/admin npx vite build
+          APP=admin npx cap sync android
+          cd android-admin && chmod +x gradlew && ./gradlew --no-daemon assembleRelease bundleRelease
+          cp app/build/outputs/apk/release/app-release.apk ../EduNexa-Admin.apk
+          cp app/build/outputs/bundle/release/app-release.aab ../EduNexa-Admin.aab
+
+      - name: Publish release (download links always point to the newest)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="android-v1.0.${{ github.run_number }}"
+          gh release create "$TAG" EduNexa.apk EduNexa-Admin.apk EduNexa.aab EduNexa-Admin.aab \
+            --title "EduNexa Android 1.0.${{ github.run_number }}" \
+            --notes "EduNexa.apk — teachers, parents, students, head teacher, accountant, librarian, storekeeper, transport, canteen, hostel, support staff and gate kiosk. EduNexa-Admin.apk — school Owner/Admin and the EduNexa Super Admin. Allow 'Install unknown apps' when asked. The .aab files are for the Google Play Store." \
+            --latest

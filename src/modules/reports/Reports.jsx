@@ -30,7 +30,7 @@ function useReports() {
 export default function Reports() {
   const reports = useReports();
   const user = useCurrentUser();
-  const allowed = (r) => (r.roles ? r.roles.includes(user.role) : user.role === 'admin' || (r.finance && user.role === 'accountant'));
+  const allowed = (r) => (r.roles ? r.roles.includes(user.role) : user.role === 'admin' || user.role === 'headteacher' || (r.finance && user.role === 'accountant'));
   const keys = Object.keys(reports).filter((k) => allowed(reports[k]));
   const [key, setKey] = useState(keys[0]);
   const rep = reports[key];

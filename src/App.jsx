@@ -8,6 +8,9 @@ import { Toaster, EmptyState, Card } from './components/ui';
 import { Loader2 } from 'lucide-react';
 import AppShell from './components/layout/AppShell';
 import Login from './modules/auth/Login';
+import LiveAuth from './modules/auth/LiveAuth';
+import { LIVE, storeKey } from './config';
+import { useLive } from './data/sync';
 import { applyTheme, applyBranding } from './lib/theme';
 import { setCurrencySymbol } from './lib/format';
 
@@ -45,6 +48,9 @@ const Gate = lazy(() => import('./modules/gate/Gate'));
 const GateKiosk = lazy(() => import('./modules/gate/GateKiosk'));
 const LiveClasses = lazy(() => import('./modules/live/LiveClasses'));
 const LiveRoom = lazy(() => import('./modules/live/LiveRoom'));
+const Accounts = lazy(() => import('./modules/accounts/Accounts'));
+const Schools = lazy(() => import('./modules/accounts/Schools'));
+const Import = lazy(() => import('./modules/import/Import'));
 
 function PageLoader() {
   return (
@@ -69,6 +75,7 @@ function Guard({ k, children }) {
 export default function App() {
   const dark = useSession((s) => s.dark);
   const user = useCurrentUser();
+  const phase = useLive((s) => s.phase);
   const settings = useDB((s) => s.settings);
   setCurrencySymbol(settings.currencySymbol);
   useEffect(() => {
@@ -79,8 +86,8 @@ export default function App() {
   // Keep tabs on the same device in sync (e.g. the gate kiosk and a phone-view tab).
   useEffect(() => {
     const h = (e) => {
-      if (e.key === 'edunexa-db') useDB.persist.rehydrate();
-      if (e.key === 'edunexa-session') useSession.persist.rehydrate();
+      if (e.key === storeKey('edunexa-db')) useDB.persist.rehydrate();
+      if (e.key === storeKey('edunexa-session')) useSession.persist.rehydrate();
     };
     window.addEventListener('storage', h);
     return () => window.removeEventListener('storage', h);
@@ -90,9 +97,16 @@ export default function App() {
     <HashRouter>
       <Toaster />
       <Suspense fallback={<PageLoader />}>
-      {!user ? (
+      {LIVE && (phase !== 'ready' || !user) ? (
+        <LiveAuth />
+      ) : !user ? (
         <Routes>
           <Route path="*" element={<Login />} />
+        </Routes>
+      ) : user.role === 'kiosk' ? (
+        // A gate kiosk account only ever shows the kiosk screen.
+        <Routes>
+          <Route path="*" element={<GateKiosk />} />
         </Routes>
       ) : (
         <Routes>
@@ -130,6 +144,9 @@ export default function App() {
             <Route path="calendar" element={<CalendarPage />} />
             <Route path="reports" element={<Guard k="reports"><Reports /></Guard>} />
             <Route path="settings" element={<Guard k="settings"><Settings /></Guard>} />
+            <Route path="import" element={<Guard k="import"><Import /></Guard>} />
+            <Route path="accounts" element={<Guard k="accounts"><Accounts /></Guard>} />
+            <Route path="schools" element={<Guard k="schools"><Schools /></Guard>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

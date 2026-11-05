@@ -1,3 +1,6 @@
+import { LIVE } from '../../config';
+import SchoolPanel from '../accounts/SchoolPanel';
+import { PlatformDashboard } from '../accounts/Schools';
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format, parseISO, subMonths } from 'date-fns';
@@ -266,7 +269,7 @@ function AdminDashboard({ user }) {
 
   return (
     <>
-      <Hello name={user.name} display={user.role === 'superadmin' ? 'Super Admin' : undefined} sub={`${db.settings.schoolName} · ${db.terms.find((t) => t.id === term)?.name}`} />
+      <Hello name={user.name} display={user.role === 'superadmin' ? 'Super Admin' : undefined} sub={[db.settings.schoolName, db.terms.find((t) => t.id === term)?.name].filter(Boolean).join(' · ')} />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Active students" value={active} icon={GraduationCap} tone="blue" sub={`${db.classes.length} classes · Creche → Diploma`} onClick={() => navigate('/students')} />
         <StatCard label="Staff" value={db.staff.filter((s) => s.status === 'Active').length} icon={Users} tone="navy" sub={`${db.staff.filter((s) => s.role === 'Teacher').length} teachers`} onClick={() => navigate('/staff')} />
@@ -886,11 +889,15 @@ function StaffDashboard({ user }) {
 
 export default function Dashboard() {
   const user = useCurrentUser();
+  if (LIVE && user.role === 'superadmin') return <PlatformDashboard />;
   switch (user.role) {
     case 'admin':
+      return LIVE ? <><SchoolPanel /><AdminDashboard user={user} /></> : <AdminDashboard user={user} />;
     case 'superadmin':
+    case 'headteacher':
       return <AdminDashboard user={user} />;
     case 'staff':
+    case 'hostel':
       return <StaffDashboard user={user} />;
     case 'teacher':
       return <TeacherDashboard user={user} />;

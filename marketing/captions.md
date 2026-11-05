@@ -1,6 +1,6 @@
 # EduNexa flyers: captions and hashtags
 
-All flyers are 1:1 (2160×2160 PNG) and work for Instagram, Facebook, LinkedIn, X and WhatsApp Status. Add the demo link to every post: https://nyamebabaku-lab.github.io/edunexa/
+All flyers are 1:1 (2160×2160 PNG) and work for Instagram, Facebook, LinkedIn, X and WhatsApp Status. Add the demo link to every post: https://nyamebabaku-lab.github.io/edunexa/demo/
 
 Hashtags to mix in: #EduNexa #SchoolManagement #EdTechGhana #GhanaSchools #GhanaEducation #SchoolSoftware #LMS #Teachers #Parents #MoMo
 

@@ -1,6 +1,7 @@
 import { useId } from 'react';
 import { useDB } from '../../data/store';
 import { cx } from '../ui';
+import { LIVE } from '../../config';
 
 export function LogoMark({ className = 'h-10 w-10' }) {
   const gid = `lg-${useId().replace(/:/g, '')}`;
@@ -38,7 +39,22 @@ function splitName(name) {
 
 export default function Logo({ compact, dark }) {
   const appName = useDB((s) => s.settings.appName) || 'EduNexa';
-  const tagline = useDB((s) => s.settings.tagline) || 'School Suite';
+  const schoolName = useDB((s) => s.settings.schoolName);
+  const tagline = useDB((s) => s.settings.tagline) || (LIVE ? 'Powered by EduNexa' : 'School Suite');
+  // Live: each school's own name and logo lead; EduNexa only appears as "Powered by".
+  if (LIVE && schoolName) {
+    return (
+      <div className="flex min-w-0 items-center gap-2.5">
+        <SchoolLogo className="h-9 w-9 shrink-0" />
+        {!compact && (
+          <div className="min-w-0 leading-none">
+            <p className={cx('truncate text-[15px] font-extrabold leading-tight tracking-tight', dark ? 'text-white' : 'text-slate-900 dark:text-white')}>{schoolName}</p>
+            <p className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-[.14em] text-slate-400">{tagline}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
   const [a, b] = splitName(appName);
   return (
     <div className="flex min-w-0 items-center gap-2.5">

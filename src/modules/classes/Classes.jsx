@@ -17,7 +17,7 @@ export default function Classes() {
   const [tab, setTab] = useState('classes');
   const [open, setOpen] = useState(null);
   const [form, setForm] = useState(null);
-  const isAdmin = user.role === 'admin';
+  const isAdmin = (user.role === 'admin' || user.role === 'headteacher');
   const teachers = db.staff.filter((s) => s.role === 'Teacher');
   const teacherOpts = teachers.map((t) => ({ value: t.id, label: `${t.title} ${t.firstName} ${t.lastName} (${t.department})` }));
 

@@ -8,6 +8,8 @@ import { gateToken, gateCode, slotNow, parseBadge, clock } from '../../lib/gate'
 import { QRCode, QRScanner } from '../../components/QR';
 import { SchoolLogo } from '../../components/layout/Logo';
 import { cx, Avatar } from '../../components/ui';
+import { useCurrentUser } from '../../data/selectors';
+import { signOut } from '../../data/sync';
 import { photoKey, usePhoto } from '../../data/photos';
 
 /** Full-screen display for a tablet or TV at the school entrance. */
@@ -15,6 +17,7 @@ export default function GateKiosk() {
   const db = useDB();
   const L = useLookups();
   const navigate = useNavigate();
+  const kioskAccount = useCurrentUser()?.role === 'kiosk';
   const gate = db.settings.gate;
   const [now, setNow] = useState(Date.now());
   const [mode, setMode] = useState('display');
@@ -143,7 +146,7 @@ export default function GateKiosk() {
       )}
 
       <div className="fixed bottom-4 left-4 flex gap-2">
-        <button onClick={() => navigate('/gate')} className="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/20"><ArrowLeft className="h-4 w-4" /> Exit kiosk</button>
+        <button onClick={() => (kioskAccount ? window.confirm('Sign this kiosk out?') && signOut() : navigate('/gate'))} className="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/20"><ArrowLeft className="h-4 w-4" /> {kioskAccount ? 'Sign out' : 'Exit kiosk'}</button>
         <button onClick={() => document.documentElement.requestFullscreen?.()} className="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/20"><Maximize className="h-4 w-4" /> Full screen</button>
       </div>
     </div>

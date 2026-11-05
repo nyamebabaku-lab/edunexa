@@ -125,7 +125,7 @@ export default function StudentProfile() {
   const loans = db.loans.filter((l) => l.memberId === student.id);
   const visits = db.healthVisits.filter((h) => h.studentId === student.id);
   const incidents = db.incidents.filter((h) => h.studentId === student.id);
-  const isAdmin = user.role === 'admin';
+  const isAdmin = (user.role === 'admin' || user.role === 'headteacher');
   const recent = [...db.attendance].filter((a) => a.records[student.id]).sort((a, b) => b.date.localeCompare(a.date));
   const ATT = { P: ['Present', 'green'], A: ['Absent', 'red'], L: ['Late', 'amber'], E: ['Excused', 'blue'] };
 

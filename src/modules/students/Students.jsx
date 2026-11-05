@@ -103,7 +103,7 @@ export default function Students() {
             <Button variant="secondary" icon={Download} onClick={exportCSV}>
               Export
             </Button>
-            {user.role === 'admin' && (
+            {(user.role === 'admin' || user.role === 'headteacher') && (
               <Button icon={Plus} onClick={() => setForm({ gender: 'Female', boarding: 'Day', status: 'Active' })}>
                 Add student
               </Button>
@@ -148,7 +148,7 @@ export default function Students() {
           { key: 'dob', label: 'Age', hideOnMobile: true, render: (s) => age(s.dob) },
           { key: 'parentId', label: 'Parent', hideOnMobile: true, sort: (s) => L.parentName(s.parentId), render: (s) => <span className="text-slate-600 dark:text-slate-300">{L.parentName(s.parentId)}</span> },
           { key: 'boarding', label: 'Type', hideOnMobile: true, render: (s) => <Badge tone={s.boarding === 'Boarder' ? 'violet' : 'slate'}>{s.boarding}</Badge> },
-          ...(user.role === 'admin'
+          ...((user.role === 'admin' || user.role === 'headteacher')
             ? [{ key: 'balance', label: 'Balance', sort: (s) => bal.get(s.id).balance, render: (s) => { const b = bal.get(s.id).balance; return <span className={b > 0 ? 'font-semibold text-accent-600' : 'text-emerald-600'}>{money(b)}</span>; } }]
             : []),
         ]}

@@ -1,5 +1,6 @@
 // Deterministic demo data for a Ghanaian school (Creche → Diploma).
 import { addDays, format, subDays, isWeekend } from 'date-fns';
+import { LIVE } from '../config';
 import { payslip } from '../lib/payroll';
 import { buildCanteen } from './canteenSeed';
 import { buildClockings } from './clockSeed';
@@ -15,7 +16,9 @@ function rng(seed) {
   };
 }
 
-export const TODAY = '2026-11-02';
+// The demo is frozen on one school day; the live apps use the real date.
+const localYmd = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+export const TODAY = LIVE ? localYmd(new Date()) : '2026-11-02';
 const d = (s) => new Date(`${s}T00:00:00`);
 const ymd = (dt) => format(dt, 'yyyy-MM-dd');
 const pad = (n, w = 3) => String(n).padStart(w, '0');

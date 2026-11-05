@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { create } from 'zustand';
-import { X, Search, ChevronLeft, ChevronRight, ArrowUpDown, CheckCircle2, AlertTriangle, Info, Inbox } from 'lucide-react';
+import { X, Search, ChevronLeft, ChevronRight, ArrowUpDown, CheckCircle2, AlertTriangle, Info, Inbox, Loader2 } from 'lucide-react';
 import { initials } from '../../lib/format';
 import { usePhoto } from '../../data/photos';
 
@@ -43,6 +43,9 @@ const BTN = {
   'soft-red': 'bg-accent-50 text-accent-700 hover:bg-accent-100 dark:bg-accent-500/15 dark:text-accent-300',
 };
 const SIZES = { sm: 'h-8 px-3 text-xs gap-1.5', md: 'h-10 px-4 text-sm gap-2', lg: 'h-12 px-5 text-sm gap-2' };
+
+/** Spinning loader; works as a Button icon while something is in progress. */
+export const Spinner = ({ className = 'h-4 w-4' }) => <Loader2 className={cx('animate-spin', className)} />;
 
 export function Button({ variant = 'primary', size = 'md', icon: Icon, className, children, ...props }) {
   return (

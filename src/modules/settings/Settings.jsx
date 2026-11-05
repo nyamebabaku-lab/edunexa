@@ -1,3 +1,4 @@
+import { LIVE } from '../../config';
 import { useEffect, useRef, useState } from 'react';
 import {
   Save, School, CalendarRange, Award, ShieldCheck, Database, Smartphone, RotateCcw, Download, Moon, Check, Minus, Palette, Blocks,
@@ -53,8 +54,8 @@ function Branding({ s, setS }) {
         <Card className="p-6">
           <p className="mb-4 font-bold text-slate-900 dark:text-white">Identity</p>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="App name" hint="Shown in the sidebar, sign-in page and browser tab"><Input value={s.appName} onChange={(e) => setS({ ...s, appName: e.target.value })} /></Field>
-            <Field label="Tagline"><Input value={s.tagline || ''} placeholder="School Suite" onChange={(e) => setS({ ...s, tagline: e.target.value })} /></Field>
+            {!LIVE && <Field label="App name" hint="Shown in the sidebar, sign-in page and browser tab"><Input value={s.appName} onChange={(e) => setS({ ...s, appName: e.target.value })} /></Field>}
+            <Field label="Tagline" hint={LIVE ? 'Shown under your school name in the menu' : undefined}><Input value={s.tagline || ''} placeholder={LIVE ? 'e.g. Knowledge is light' : 'School Suite'} onChange={(e) => setS({ ...s, tagline: e.target.value })} /></Field>
             <Field label="School name" className="sm:col-span-2"><Input value={s.schoolName} onChange={(e) => setS({ ...s, schoolName: e.target.value })} /></Field>
             <Field label="Motto" className="sm:col-span-2"><Input value={s.motto} onChange={(e) => setS({ ...s, motto: e.target.value })} /></Field>
           </div>
@@ -308,7 +309,8 @@ function OfflineCard() {
 export default function Settings() {
   const db = useDB();
   const user = useCurrentUser();
-  const isSuper = user.role === 'superadmin';
+  // Demo: the Super Admin brands the app. Live: each school's Owner/Admin brands their own school.
+  const isSuper = user.role === 'superadmin' || (LIVE && user.role === 'admin');
   const { dark, toggleDark } = useSession();
   const [tab, setTab] = useState(isSuper ? 'branding' : 'school');
   const [s, setS] = useState(() => clone(db.settings));
@@ -318,7 +320,7 @@ export default function Settings() {
 
   const save = () => {
     db.updateSettings({ ...s, libraryFinePerDay: Number(s.libraryFinePerDay), loanDays: Number(s.loanDays), gate: { ...s.gate, rotateSeconds: Math.max(10, Number(s.gate.rotateSeconds) || 30) } });
-    toast.success('Settings saved', 'Applied for everyone on this device');
+    toast.success('Settings saved', LIVE ? 'Applied for everyone in your school' : 'Applied for everyone on this device');
   };
   const backup = () => {
     const data = { ...Object.fromEntries(Object.entries(useDB.getState()).filter(([, v]) => typeof v !== 'function')), photos: usePhotos.getState().map };
@@ -343,8 +345,9 @@ export default function Settings() {
     { value: 'academic', label: 'Academic year', icon: CalendarRange },
     { value: 'gate', label: 'Gate attendance', icon: DoorOpen },
     { value: 'live', label: 'Live classes', icon: Video },
-    ...(isSuper ? [{ value: 'modules', label: 'Modules', icon: Blocks }, { value: 'security', label: 'Login & security', icon: LockKeyhole }] : []),
-    { value: 'users', label: 'Users', icon: Users, count: db.users.filter((u) => u.status === 'Pending').length || undefined },
+    ...(isSuper ? [{ value: 'modules', label: 'Modules', icon: Blocks }] : []),
+    ...(isSuper && !LIVE ? [{ value: 'security', label: 'Login & security', icon: LockKeyhole }] : []),
+    ...(LIVE ? [] : [{ value: 'users', label: 'Users', icon: Users, count: db.users.filter((u) => u.status === 'Pending').length || undefined }]),
     { value: 'grading', label: 'Grading', icon: Award },
     { value: 'roles', label: 'Roles & access', icon: ShieldCheck },
     { value: 'data', label: 'Data & app', icon: Database },
@@ -353,8 +356,8 @@ export default function Settings() {
   return (
     <>
       <PageHeader
-        title={isSuper ? 'System Settings' : 'Settings'}
-        subtitle={isSuper ? 'Configure the platform for this school: branding, modules, sign-in security and more' : 'School profile, academic calendar, gate attendance, users and data'}
+        title={LIVE ? 'School Settings' : isSuper ? 'System Settings' : 'Settings'}
+        subtitle={LIVE ? 'Your logo and colours, school profile, academic year, gate and modules — saved for everyone in your school' : isSuper ? 'Configure the platform for this school: branding, modules, sign-in security and more' : 'School profile, academic calendar, gate attendance, users and data'}
         actions={editable && <Button icon={Save} onClick={save} disabled={!dirty}>{dirty ? 'Save changes' : 'Saved'}</Button>}
       />
       <Tabs className="mb-6" value={tab} onChange={setTab} tabs={tabs} />
@@ -536,10 +539,10 @@ export default function Settings() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <OfflineCard />
           <Card>
-            <CardHeader title="Data" icon={Database} subtitle="Prototype mode: data is stored in this browser" />
+            <CardHeader title="Data" icon={Database} subtitle={LIVE ? 'Your school data is stored securely online and cached on this device for offline use' : 'Prototype mode: data is stored in this browser'} />
             <div className="space-y-3 p-5">
               <Button variant="secondary" icon={Download} className="w-full" onClick={backup}>Download backup (JSON)</Button>
-              <Button variant="soft-red" icon={RotateCcw} className="w-full" onClick={reset}>Reset demo data</Button>
+              {!LIVE && <Button variant="soft-red" icon={RotateCcw} className="w-full" onClick={reset}>Reset demo data</Button>}
             </div>
           </Card>
           <Card>

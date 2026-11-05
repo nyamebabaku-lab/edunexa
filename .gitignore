@@ -25,3 +25,8 @@ dist-ssr
 
 # Tutorial video (large; shared separately)
 docs/tutorial/*.mp4
+
+# Local Supabase keys
+.env.local
+# Native build output
+build/
