@@ -1,12 +1,26 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Printer, X } from 'lucide-react';
+import { Printer, X, Share2, Download } from 'lucide-react';
 import { useDB } from '../data/store';
-import { Button } from './ui';
+import { Button, Spinner, toast } from './ui';
+import { isPhone, elementToPdf, sharePdf } from '../lib/pdf';
 import { SchoolLogo } from './layout/Logo';
 
 /** Full-screen printable document. Hides the app when printing. */
 export default function PrintView({ open, onClose, title, children, actions }) {
+  const body = useRef(null);
+  const [busy, setBusy] = useState(false);
+  const phone = isPhone();
+  const pdf = async () => {
+    setBusy(true);
+    try {
+      const r = await sharePdf(await elementToPdf(body.current), title);
+      if (r === 'downloaded') toast.success('PDF saved', 'Check your Downloads');
+    } catch (e) {
+      toast.error('Could not make the PDF', e.message);
+    }
+    setBusy(false);
+  };
   useEffect(() => {
     if (!open) return;
     document.body.classList.add('has-print');
@@ -23,14 +37,19 @@ export default function PrintView({ open, onClose, title, children, actions }) {
       <div className="no-print sticky top-0 z-10 flex items-center gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-navy-900/95">
         <p className="flex-1 truncate font-bold text-slate-800 dark:text-white">{title}</p>
         {actions}
-        <Button icon={Printer} onClick={() => window.print()}>
-          Print / PDF
-        </Button>
+        {phone ? (
+          <Button icon={busy ? Spinner : Share2} onClick={pdf} disabled={busy}>{busy ? 'Making PDF…' : 'Share / Save PDF'}</Button>
+        ) : (
+          <>
+            <Button variant="secondary" icon={busy ? Spinner : Download} onClick={pdf} disabled={busy}>PDF</Button>
+            <Button icon={Printer} onClick={() => window.print()}>Print</Button>
+          </>
+        )}
         <Button variant="secondary" icon={X} onClick={onClose}>
           Close
         </Button>
       </div>
-      <div className="mx-auto my-6 max-w-[820px] px-3 print:m-0 print:max-w-none print:p-0">{children}</div>
+      <div ref={body} className="mx-auto my-6 max-w-[820px] px-3 print:m-0 print:max-w-none print:p-0">{children}</div>
     </div>,
     document.body,
   );

@@ -1,3 +1,4 @@
+import { printOrShare, isPhone } from '../../lib/pdf';
 import { useMemo, useState } from 'react';
 import { Printer, Pencil, Check, Coffee } from 'lucide-react';
 import { useDB } from '../../data/store';
@@ -66,7 +67,7 @@ export default function Timetable() {
                 {editing ? 'Done' : 'Edit'}
               </Button>
             )}
-            <Button variant="secondary" icon={Printer} onClick={() => window.print()}>Print</Button>
+            <Button variant="secondary" icon={Printer} onClick={() => printOrShare(document.querySelector('main'), document.title).catch((e) => toast.error('Could not make the PDF', e.message))}>{isPhone() ? 'Share PDF' : 'Print'}</Button>
           </>
         }
       />

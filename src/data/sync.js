@@ -8,12 +8,13 @@ import { KV_COLLECTIONS, COLLECTIONS, canWrite, readScope, COLLECTION_LABEL } fr
 import { ADMIN_APP, storeKey, PHONE_DOMAIN } from '../config';
 import { setServerPhotos, clearPhotos } from './photos';
 import { toast } from '../components/ui';
+import { startPush, stopPush } from '../lib/push';
 
 /**
  * phase: 'loading' | 'signedOut' | 'noProfile' | 'waiting' | 'wrongApp' | 'ready'
  * profile / school: rows from the server; schools: every school (Super Admin only).
  */
-export const useLive = create(() => ({ phase: 'loading', profile: null, school: null, superExists: true, schools: [], stats: {}, pending: 0, syncing: false, lastSync: null }));
+export const useLive = create(() => ({ notifications: [], phase: 'loading', profile: null, school: null, superExists: true, schools: [], stats: {}, pending: 0, syncing: false, lastSync: null }));
 const L = (patch) => useLive.setState(patch);
 
 const OUTBOX = storeKey('edunexa-outbox');
@@ -131,6 +132,20 @@ async function loadPlatform() {
   L({ schools, stats: counts });
 }
 
+async function loadNotifications() {
+  const { data } = await supabase.from('notifications').select('id,created_at,kind,title,body,link,read_at').order('created_at', { ascending: false }).limit(100);
+  L({ notifications: data || [] });
+}
+
+/** Marks the signed-in person's notifications as read. */
+export async function markNotificationsRead() {
+  const unread = useLive.getState().notifications.filter((n) => !n.read_at).map((n) => n.id);
+  if (!unread.length) return;
+  const now = new Date().toISOString();
+  L({ notifications: useLive.getState().notifications.map((n) => (n.read_at ? n : { ...n, read_at: now })) });
+  await supabase.from('notifications').update({ read_at: now }).in('id', unread);
+}
+
 /** Re-reads everything for the signed-in account. */
 export async function reload() {
   const { profile } = useLive.getState();
@@ -139,6 +154,7 @@ export async function reload() {
   try {
     if (profile.role === 'superadmin') await loadPlatform();
     else await loadSchool(profile);
+    loadNotifications().catch(() => {});
     L({ lastSync: new Date().toISOString() });
   } catch (e) {
     toast.error('Could not refresh', friendly(e.message));
@@ -165,6 +181,9 @@ function subscribe(profile) {
       if (ev.new.status !== 'active') refresh();
     });
   }
+  ch.on('postgres_changes', { event: 'INSERT', schema: 'edunexa', table: 'notifications', filter: `user_id=eq.${profile.user_id}` }, (ev) => {
+    L({ notifications: [ev.new, ...useLive.getState().notifications].slice(0, 100) });
+  });
   ch.on('postgres_changes', { event: '*', schema: 'edunexa', table: 'profiles' }, (ev) => {
     if ((ev.new?.user_id || ev.old?.user_id) === profile.user_id) return refresh();
     loadUsers().then((users) => useDB.setState({ users })).catch(() => {});
@@ -337,6 +356,7 @@ export async function refresh() {
   if (adminRole !== ADMIN_APP) return L({ phase: 'wrongApp' });
   if (profile.status !== 'active' || (school && school.status !== 'active')) {
     subscribe(profile);
+    startPush().catch(() => {}); // so "your account is approved" reaches the phone
     return L({ phase: 'waiting' });
   }
   useSession.setState({ userId: profile.user_id });
@@ -349,6 +369,7 @@ export async function refresh() {
   L({ phase: 'ready' });
   subscribe(profile);
   flush();
+  startPush().catch(() => {});
 }
 
 export function startLive() {
@@ -375,6 +396,7 @@ export async function signOut() {
   if (outbox.length && !window.confirm(`${outbox.length} change(s) have not reached the server yet (no internet). Sign out anyway and lose them?`)) return;
   channel?.unsubscribe();
   channel = null;
+  await stopPush().catch(() => {});
   await supabase.auth.signOut();
   localStorage.removeItem(OWNER);
   resetLocal();

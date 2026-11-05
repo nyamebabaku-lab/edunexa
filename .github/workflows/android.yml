@@ -38,6 +38,19 @@ jobs:
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > $RUNNER_TEMP/upload.p12
           echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/upload.p12" >> $GITHUB_ENV
 
+      - name: Firebase (phone notifications) — only when the google-services.json secret exists
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "$GOOGLE_SERVICES_JSON" | base64 -d > android/app/google-services.json
+            cp android/app/google-services.json android-admin/app/google-services.json
+            echo "VITE_PUSH=1" >> $GITHUB_ENV
+            echo "Push notifications ON"
+          else
+            echo "No GOOGLE_SERVICES_JSON secret: building without push"
+          fi
+
       - name: EduNexa (teachers, parents, students and staff)
         run: |
           VITE_APP=main OUT_DIR=build/main npx vite build

@@ -1,3 +1,4 @@
+import { nextStaffNo } from '../../lib/numbers';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, GraduationCap, CalendarOff, Banknote, Check, X } from 'lucide-react';
@@ -65,7 +66,7 @@ export default function Staff() {
           rows={staff.filter((s) => !role || s.role === role)}
           onRowClick={(s) => navigate(`/staff/${s.id}`)}
           defaults={{ title: 'Mr.', gender: 'Male', role: 'Teacher', status: 'Active', dateJoined: TODAY, allowances: 0 }}
-          toRecord={(v) => (v.staffNo ? v : { ...v, staffNo: `BFIS/ST/${String(staff.length + 1).padStart(3, '0')}` })}
+          toRecord={(v) => (v.staffNo ? v : { ...v, staffNo: nextStaffNo(useDB.getState()) })}
           onSaved={(rec, v) => applyPhotoChange(photoKey('Staff', rec.id), v._photo)}
           searchText={(s) => `${s.firstName} ${s.lastName} ${s.role} ${s.department} ${s.staffNo}`}
           toolbar={<Select className="!w-auto" value={role} onChange={(e) => setRole(e.target.value)} options={STAFF_ROLES} placeholder="All roles" />}

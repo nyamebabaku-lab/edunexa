@@ -165,7 +165,8 @@ export default function AppShell() {
   }, [loc.pathname]);
 
   if (!user) return null;
-  const unread = messages.filter((m) => m.toId === user.id && !m.read).length;
+  const unreadNotes = useLive((st) => st.notifications.filter((n) => !n.read_at).length);
+  const unread = LIVE ? unreadNotes : messages.filter((m) => m.toId === user.id && !m.read).length;
   const tabs = (MOBILE_TABS[user.role] || ['dashboard']).map(navItem).filter((t) => t && navFor(user.role, settings.modules).some((g) => g.items.includes(t)));
 
   return (
@@ -227,7 +228,7 @@ export default function AppShell() {
               <button onClick={toggleDark} className="rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10" aria-label="Toggle dark mode">
                 {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               </button>
-              <button onClick={() => navigate('/communication')} className="relative rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10" aria-label="Messages">
+              <button onClick={() => navigate(LIVE ? '/notifications' : '/communication')} className="relative rounded-xl p-2.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10" aria-label="Notifications">
                 <Bell className="h-5 w-5" />
                 {unread > 0 && <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-600 px-1 text-[10px] font-bold text-white ring-2 ring-white dark:ring-navy-950">{unread}</span>}
               </button>

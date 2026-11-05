@@ -1,3 +1,4 @@
+import { schoolPrefix } from '../../lib/numbers';
 import { smsAudiences } from '../../lib/sms';
 import { LIVE } from '../../config';
 import { useState } from 'react';
@@ -121,7 +122,7 @@ export default function Communication() {
             <div className="space-y-4">
               <Field label="Audience"><Select value={sms.audience} onChange={(e) => setSms({ ...sms, audience: e.target.value })} options={Object.entries(audienceCount).map(([k, v]) => ({ value: k, label: `${k} (${v})` }))} /></Field>
               <Field label="Message" hint={`${sms.message.length}/160 characters · ${Math.max(1, Math.ceil(sms.message.length / 160))} SMS each`}>
-                <Textarea value={sms.message} onChange={(e) => setSms({ ...sms, message: e.target.value })} placeholder="BFIS: …" />
+                <Textarea value={sms.message} onChange={(e) => setSms({ ...sms, message: e.target.value })} placeholder={`${schoolPrefix(db.settings)}: …`} />
               </Field>
               <Button className="w-full" icon={Send} onClick={() => {
                 if (!sms.message.trim()) return toast.error('Type a message');

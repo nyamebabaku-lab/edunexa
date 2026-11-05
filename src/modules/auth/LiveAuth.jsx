@@ -10,6 +10,7 @@ import { useLive, refresh, signOut, loginEmail, holdAuth } from '../../data/sync
 import { ROLES } from '../../lib/permissions';
 import { PRESETS, fileToLogo, applyTheme } from '../../lib/theme';
 import { DEFAULT_SETTINGS_EXT } from '../../data/seed';
+import { initialsFrom } from '../../lib/numbers';
 import { ADMIN_APP, APK_URL, ADMIN_APK_URL, IS_NATIVE, SITE, ADMIN_SITE } from '../../config';
 import { LogoMark } from '../../components/layout/Logo';
 import { OfflineBanner } from '../../components/NetworkBanner';
@@ -310,6 +311,7 @@ function Register({ go, signedIn }) {
       const settings = {
         ...structuredClone(DEFAULT_SETTINGS_EXT),
         logo,
+        initials: initialsFrom(v.school),
         theme: { preset: theme.id, brand: theme.brand, accent: theme.accent },
         address: v.city.trim(),
         phone: v.schoolPhone.trim(),

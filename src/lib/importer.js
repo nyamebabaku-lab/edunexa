@@ -2,6 +2,7 @@
 // Re-importing the same file updates records instead of duplicating them (students by admission number,
 // staff by staff number / email / phone, classes by name, books by ISBN, store items by SKU…).
 import { uid } from './format';
+import { schoolPrefix } from './numbers';
 import { STARTER_SECTIONS, SUBJECT_DEFS } from '../data/starter';
 
 // ---------------------------------------------------------------- template
@@ -309,7 +310,7 @@ export function planImport(XLSX, wb, db) {
     const joined = toDate(r.datejoined);
     if (joined === null) err('Staff', r._row, `Date Joined "${str(r.datejoined)}" is not a date — left blank`);
     const rec = {
-      ...(ex || { id: uid('stf'), staffNo: no || `ST/${pad(staff.length + 1, 3)}`, status: 'Active' }),
+      ...(ex || { id: uid('stf'), staffNo: no || `${schoolPrefix(db.settings)}/ST/${pad(staff.length + 1, 3)}`, status: 'Active' }),
       ...(no ? { staffNo: no } : {}),
       title: str(r.title) || ex?.title || '', firstName: first, lastName: last, gender: gender(r.gender) || ex?.gender || '', role,
       department: str(r.department) || ex?.department || '', phone: ph || ex?.phone || '', email: em || ex?.email || '',

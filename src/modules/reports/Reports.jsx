@@ -1,3 +1,4 @@
+import { printOrShare, isPhone } from '../../lib/pdf';
 import { useMemo, useState } from 'react';
 import { Download, Printer, GraduationCap, Wallet, ClipboardCheck, Award, BookOpen, Package, Receipt, Users, UtensilsCrossed } from 'lucide-react';
 import { useDB } from '../../data/store';
@@ -5,7 +6,7 @@ import { useCurrentUser, invoiceNet, loanStatus, sortedClasses, attendanceStats 
 import { money, pct, sum, groupBy, fullName, fmtDate, downloadCSV } from '../../lib/format';
 import { classResults } from '../../lib/results';
 import { invoiceStatus } from '../finance/shared';
-import { Card, PageHeader, Button, DataTable, cx } from '../../components/ui';
+import { Card, PageHeader, Button, DataTable, cx , toast } from '../../components/ui';
 
 function useReports() {
   const db = useDB();
@@ -39,7 +40,7 @@ export default function Reports() {
   return (
     <>
       <PageHeader title="Reports" subtitle="Cross-module summaries — export to CSV or print"
-        actions={<><Button variant="secondary" icon={Printer} onClick={() => window.print()}>Print</Button><Button icon={Download} onClick={() => downloadCSV(rep.title, rows.map(({ id, ...r }) => r))}>Export CSV</Button></>} />
+        actions={<><Button variant="secondary" icon={Printer} onClick={() => printOrShare(document.querySelector('main'), document.title).catch((e) => toast.error('Could not make the PDF', e.message))}>{isPhone() ? 'Share PDF' : 'Print'}</Button><Button icon={Download} onClick={() => downloadCSV(rep.title, rows.map(({ id, ...r }) => r))}>Export CSV</Button></>} />
       <div className="no-print mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         {keys.map((k) => {
           const R = reports[k];

@@ -1,3 +1,5 @@
+import { schoolPrefix, initialsFrom } from '../../lib/numbers';
+import { TODAY } from '../../data/seed';
 import { SchoolSmsCard } from '../accounts/SmsSetup';
 import { MessageSquareText } from 'lucide-react';
 import { LIVE } from '../../config';
@@ -378,6 +380,7 @@ export default function Settings() {
               <Field label="Email"><Input value={s.email} onChange={set('email')} /></Field>
               <Field label="Website"><Input value={s.website} onChange={set('website')} /></Field>
               <Field label="Head of school"><Input value={s.headName} onChange={set('headName')} /></Field>
+              <Field label="School initials" hint={`Admission numbers look like ${schoolPrefix(s)}/${TODAY.slice(2, 4)}/0001 · staff ${schoolPrefix(s)}/ST/001`}><Input value={s.initials ?? ''} maxLength={6} placeholder={initialsFrom(s.schoolName)} onChange={(e) => setS({ ...s, initials: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })} /></Field>
             </div>
           </Card>
           <Card className="h-fit p-6">

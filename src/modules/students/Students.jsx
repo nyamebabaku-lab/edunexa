@@ -1,3 +1,4 @@
+import { nextAdmissionNo } from '../../lib/numbers';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Download, GraduationCap, Users, BedDouble, Bus } from 'lucide-react';
@@ -70,8 +71,7 @@ export default function Students() {
     .map((c) => ({ value: c.id, label: c.name }));
 
   const save = ({ _photo, ...v }) => {
-    const seq = db.students.length + 1;
-    const rec = db.add('students', { ...v, admissionNo: `BFIS/${TODAY.slice(2, 4)}/${String(seq + 1000).slice(-4)}`, status: v.status || 'Active', nationality: 'Ghanaian', admissionDate: v.admissionDate || TODAY });
+    const rec = db.add('students', { ...v, admissionNo: v.admissionNo?.trim() || nextAdmissionNo(db), status: v.status || 'Active', nationality: 'Ghanaian', admissionDate: v.admissionDate || TODAY });
     applyPhotoChange(photoKey('Student', rec.id), _photo);
     toast.success('Student added', `${v.firstName} ${v.lastName}${_photo ? ' with photo' : ''}`);
     setForm(null);

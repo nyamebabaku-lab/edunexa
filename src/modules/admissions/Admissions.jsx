@@ -1,3 +1,4 @@
+import { nextAdmissionNo } from '../../lib/numbers';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ArrowRight, XCircle, CheckCircle2, FileText, LayoutGrid, List, UserPlus, Phone, School } from 'lucide-react';
@@ -27,9 +28,8 @@ export function enrolApplicant(app) {
     occupation: '',
     address: '',
   });
-  const seq = db.students.length + 1;
   const student = db.add('students', {
-    admissionNo: `BFIS/${TODAY.slice(2, 4)}/${String(seq + 1000).slice(-4)}`,
+    admissionNo: nextAdmissionNo(db),
     firstName: app.firstName,
     otherNames: '',
     lastName: app.lastName,
