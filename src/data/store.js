@@ -115,6 +115,13 @@ export const useDB = create(
         set((s) => ({ [col]: s[col].filter((x) => x.id !== id) }));
         send({ type: 'del', col, id });
       },
+      /** Deletes many records of one collection in a single update. */
+      removeMany: (col, ids) => {
+        if (!ids.length || !allowed(col)) return;
+        const drop = new Set(ids);
+        set((s) => ({ [col]: s[col].filter((x) => !drop.has(x.id)) }));
+        ids.forEach((id) => send({ type: 'del', col, id }));
+      },
       setKey: (key, value) => {
         if (!allowed(key)) return;
         const before = get()[key];

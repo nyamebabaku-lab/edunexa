@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { create } from 'zustand';
-import { X, Search, ChevronLeft, ChevronRight, ArrowUpDown, CheckCircle2, AlertTriangle, Info, Inbox, Loader2 } from 'lucide-react';
+import { X, Search, ChevronLeft, ChevronRight, ChevronDown, ArrowUpDown, CheckCircle2, AlertTriangle, Info, Inbox, Loader2 } from 'lucide-react';
 import { initials } from '../../lib/format';
 import { usePhoto } from '../../data/photos';
 
@@ -148,6 +148,56 @@ export function Select({ options = [], placeholder, className, ...p }) {
   );
 }
 
+/**
+ * Editable dropdown: pick from the list or type your own value (e.g. a house, title or unit not in the list).
+ * options: strings. Typing filters the list; whatever is typed is kept.
+ */
+export function Combo({ value = '', onChange, options = [], placeholder = 'Choose or type…', className, required, disabled }) {
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState(false);
+  const box = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e) => !box.current?.contains(e.target) && setOpen(false);
+    document.addEventListener('pointerdown', h);
+    return () => document.removeEventListener('pointerdown', h);
+  }, [open]);
+  const v = String(value ?? '');
+  const list = typed && v ? options.filter((o) => String(o).toLowerCase().includes(v.toLowerCase())) : options;
+  const pick = (o) => { onChange(o); setOpen(false); setTyped(false); };
+  return (
+    <div ref={box} className={cx('relative', className)}>
+      <input
+        className="input pr-9"
+        value={v}
+        required={required}
+        disabled={disabled}
+        placeholder={placeholder}
+        onFocus={() => { setOpen(true); setTyped(false); }}
+        onChange={(e) => { onChange(e.target.value); setTyped(true); setOpen(true); }}
+        onKeyDown={(e) => { if (e.key === 'Escape' || e.key === 'Enter') { if (open && e.key === 'Enter') e.preventDefault(); setOpen(false); } }}
+      />
+      <button type="button" tabIndex={-1} aria-label="Show choices" disabled={disabled} onClick={() => { setTyped(false); setOpen((o) => !o); }} className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 hover:text-slate-600">
+        <ChevronDown className={cx('h-4 w-4 transition', open && 'rotate-180')} />
+      </button>
+      {open && (list.length > 0 || v) && (
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lift dark:border-white/10 dark:bg-navy-900">
+          {list.map((o) => (
+            <button type="button" key={o} onClick={() => pick(o)} className={cx('block w-full px-3.5 py-2 text-left text-sm hover:bg-brand-50 dark:hover:bg-white/5', String(o) === v && 'font-semibold text-brand-700 dark:text-brand-300')}>
+              {o}
+            </button>
+          ))}
+          {v && !options.some((o) => String(o).toLowerCase() === v.toLowerCase()) && (
+            <button type="button" onClick={() => pick(v)} className="block w-full border-t border-slate-100 px-3.5 py-2 text-left text-sm text-brand-700 hover:bg-brand-50 dark:border-white/5 dark:text-brand-300 dark:hover:bg-white/5">
+              Use “{v}”
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SearchInput({ value, onChange, placeholder = 'Search…', className }) {
   return (
     <div className={cx('relative', className)}>
@@ -273,7 +323,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
   return createPortal(
     <div className="no-print fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <div className="absolute inset-0 bg-navy-950/50 backdrop-blur-sm" onClick={onClose} />
-      <div className={cx('relative flex max-h-[92vh] w-full animate-scale-in flex-col rounded-t-3xl bg-white shadow-2xl dark:bg-navy-900 sm:rounded-3xl', w)}>
+      <div role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : undefined} className={cx('relative flex max-h-[92vh] w-full animate-scale-in flex-col rounded-t-3xl bg-white shadow-2xl dark:bg-navy-900 sm:rounded-3xl', w)}>
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-4 dark:border-white/5">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">{title}</h2>
@@ -361,8 +411,12 @@ export function Toaster() {
 /**
  * columns: [{ key, label, render?(row), sort?(row) => value, className?, hideOnMobile? }]
  */
-export function DataTable({ columns, rows, search = true, searchText, pageSize = 12, onRowClick, toolbar, empty, initialSort, dense, footer }) {
+/**
+ * bulk(selectedRows, clear): when given, rows get tick boxes and this renders the actions for the ticked rows (e.g. Delete).
+ */
+export function DataTable({ columns: cols0, rows, search = true, searchText, pageSize = 12, onRowClick, toolbar, empty, initialSort, dense, footer, bulk }) {
   const [q, setQ] = useState('');
+  const [picked, setPicked] = useState(() => new Set());
   const [page, setPage] = useState(0);
   const [sort, setSort] = useState(initialSort || null);
 
@@ -373,7 +427,7 @@ export function DataTable({ columns, rows, search = true, searchText, pageSize =
       r = r.filter((row) => (searchText ? searchText(row) : Object.values(row).join(' ')).toLowerCase().includes(needle));
     }
     if (sort) {
-      const col = columns.find((c) => c.key === sort.key);
+      const col = cols0.find((c) => c.key === sort.key);
       const val = col?.sort || ((row) => row[sort.key]);
       r = [...r].sort((a, b) => {
         const x = val(a);
@@ -383,11 +437,28 @@ export function DataTable({ columns, rows, search = true, searchText, pageSize =
       });
     }
     return r;
-  }, [rows, q, sort, columns, searchText]);
+  }, [rows, q, sort, cols0, searchText]);
 
   useEffect(() => setPage(0), [q, rows.length]);
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const view = filtered.slice(page * pageSize, page * pageSize + pageSize);
+  // Ticked rows that are still in the list (deleted or filtered-out rows drop out).
+  const selected = bulk ? filtered.filter((r) => picked.has(r.id)) : [];
+  const allTicked = bulk && filtered.length > 0 && selected.length === filtered.length;
+  const toggle = (id) => setPicked((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const clear = () => setPicked(new Set());
+  const columns = bulk
+    ? [
+        {
+          key: '_pick',
+          nosort: true,
+          className: 'w-px !pr-0',
+          label: <input type="checkbox" aria-label="Tick all" className="h-4 w-4 rounded accent-brand-600" checked={allTicked} onChange={() => setPicked(allTicked ? new Set() : new Set(filtered.map((r) => r.id)))} />,
+          render: (r) => <input type="checkbox" aria-label="Tick" className="h-4 w-4 rounded accent-brand-600" checked={picked.has(r.id)} onClick={(e) => e.stopPropagation()} onChange={() => toggle(r.id)} />,
+        },
+        ...cols0,
+      ]
+    : cols0;
 
   return (
     <Card className="overflow-hidden">
@@ -395,6 +466,13 @@ export function DataTable({ columns, rows, search = true, searchText, pageSize =
         <div className="no-print flex flex-col gap-3 border-b border-slate-100 p-4 dark:border-white/5 md:flex-row md:items-center">
           {search && <SearchInput value={q} onChange={setQ} className="md:w-72" />}
           {toolbar && <div className="flex flex-1 flex-wrap items-center gap-2 md:justify-end">{toolbar}</div>}
+        </div>
+      )}
+      {selected.length > 0 && (
+        <div className="no-print flex flex-wrap items-center gap-3 border-b border-brand-100 bg-brand-50/70 px-4 py-2.5 dark:border-brand-500/20 dark:bg-brand-500/10">
+          <span className="text-sm font-semibold text-brand-800 dark:text-brand-200">{selected.length} ticked</span>
+          <button type="button" className="text-xs font-semibold text-slate-500 hover:underline" onClick={clear}>Clear</button>
+          <div className="ml-auto flex flex-wrap gap-2">{bulk(selected, clear)}</div>
         </div>
       )}
       {filtered.length === 0 ? (
@@ -463,6 +541,12 @@ export function DataTable({ columns, rows, search = true, searchText, pageSize =
 /**
  * fields: [{ name, label, type: text|number|date|select|textarea|email|tel|time, options, required, span: 2, placeholder }]
  */
+// Fixed lists the app relies on (statuses, gender, sections…) stay as plain dropdowns; any other list of words
+// can also be typed into, so a school is never stuck when its choice is missing.
+const STRICT_FIELDS = new Set(['gender', 'status', 'boarding', 'section', 'audience', 'priority', 'provider', 'method']);
+const opts = (f, value) => (typeof f.options === 'function' ? f.options(value) : f.options) || [];
+const isEditable = (f, list) => f.editable ?? (!f.strict && !STRICT_FIELDS.has(f.name) && list.length > 0 && list.every((o) => typeof o !== 'object'));
+
 export function FormFields({ fields, value, onChange }) {
   const set = (k, v) => onChange({ ...value, [k]: v });
   return (
@@ -484,8 +568,13 @@ export function FormFields({ fields, value, onChange }) {
         };
         return (
           <Field key={f.name} label={f.label + (f.required ? ' *' : '')} hint={f.hint} className={f.span === 2 || f.type === 'textarea' ? 'sm:col-span-2' : ''}>
-            {f.type === 'select' ? (
-              <Select options={typeof f.options === 'function' ? f.options(value) : f.options} placeholder={f.placeholder ?? 'Select…'} {...common} />
+            {f.type === 'select' && isEditable(f, opts(f, value)) ? (
+              <Combo options={opts(f, value)} value={value[f.name] ?? ''} required={f.required} placeholder={f.placeholder} onChange={(v) => set(f.name, v)} />
+            ) : f.type === 'select' ? (
+              <>
+                <Select options={opts(f, value)} placeholder={f.placeholder ?? (opts(f, value).length ? 'Select…' : 'Nothing to choose yet')} {...common} />
+                {!opts(f, value).length && f.emptyHint && <span className="mt-1 block text-xs text-amber-600">{f.emptyHint}</span>}
+              </>
             ) : f.type === 'textarea' ? (
               <Textarea {...common} />
             ) : f.type === 'checkbox' ? (

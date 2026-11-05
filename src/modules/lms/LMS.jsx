@@ -12,8 +12,8 @@ function useScope() {
   const db = useDB();
   const user = useCurrentUser();
   const { student } = usePortalStudent();
-  const isStaff = ['admin', 'headteacher', 'teacher'].includes(user.role);
-  const alloc = db.allocations.filter((a) => (user.role === 'admin' || user.role === 'headteacher') || a.teacherId === user.linkedId);
+  const isStaff = ['admin', 'headteacher', 'teacher', 'superadmin'].includes(user.role);
+  const alloc = db.allocations.filter((a) => ['admin', 'headteacher', 'superadmin'].includes(user.role) || a.teacherId === user.linkedId);
   const classes = isStaff ? sortedClasses(db.classes).filter((c) => alloc.some((a) => a.classId === c.id)) : [];
   return { db, user, student, isStaff, alloc, classes };
 }

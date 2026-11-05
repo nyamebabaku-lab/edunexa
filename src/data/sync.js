@@ -175,10 +175,20 @@ function subscribe(profile) {
       if (outbox.some((o) => o.col === row.col && o.id === row.id)) return;
       remoteChange(row.col, row.id, ev.eventType === 'DELETE' ? null : row.data);
     });
-    ch.on('postgres_changes', { event: 'UPDATE', schema: 'edunexa', table: 'schools', filter: `id=eq.${profile.school_id}` }, (ev) => {
-      useDB.setState({ settings: settingsFrom(ev.new) });
-      L({ school: ev.new });
-      if (ev.new.status !== 'active') refresh();
+    ch.on('postgres_changes', { event: 'UPDATE', schema: 'edunexa', table: 'schools', filter: `id=eq.${profile.school_id}` }, async (ev) => {
+      let school = ev.new;
+      // Very large rows (logo + front picture) can arrive without their settings: read the row instead.
+      if (!school?.settings || ev.errors?.length) {
+        try {
+          school = must(await supabase.rpc('my_context'))?.school || school;
+        } catch {
+          return;
+        }
+      }
+      if (!school?.settings) return;
+      useDB.setState({ settings: settingsFrom(school) });
+      L({ school });
+      if (school.status !== 'active') refresh();
     });
   }
   ch.on('postgres_changes', { event: 'INSERT', schema: 'edunexa', table: 'notifications', filter: `user_id=eq.${profile.user_id}` }, (ev) => {

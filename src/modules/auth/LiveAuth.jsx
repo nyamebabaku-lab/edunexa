@@ -14,6 +14,8 @@ import { initialsFrom } from '../../lib/numbers';
 import { ADMIN_APP, APK_URL, ADMIN_APK_URL, IS_NATIVE, SITE, ADMIN_SITE } from '../../config';
 import { LogoMark } from '../../components/layout/Logo';
 import { OfflineBanner } from '../../components/NetworkBanner';
+import { FrontBackdrop, useFrontImage } from '../../components/FrontImage';
+import { rememberedSchool } from '../../lib/front';
 import { Button, Field, Input, Badge, Card, Spinner, toast, cx } from '../../components/ui';
 
 const MEMBER_ROLES = ['teacher', 'parent', 'student', 'headteacher', 'accountant', 'librarian', 'storekeeper', 'transport', 'canteen', 'hostel', 'staff', 'kiosk'];
@@ -32,16 +34,17 @@ function PasswordInput({ value, onChange, placeholder = 'Password', autoComplete
 }
 
 function Shell({ children }) {
+  const front = useFrontImage({ signedIn: false });
+  const [known] = useState(() => (ADMIN_APP ? null : rememberedSchool()));
   return (
     <>
       <OfflineBanner />
       <div className="min-h-screen bg-white dark:bg-navy-950 lg:grid lg:grid-cols-[1.05fr_1fr]">
-        <div className="relative hidden overflow-hidden bg-navy-900 p-12 text-white lg:flex lg:flex-col">
-          <div className="absolute -right-24 -top-24 h-96 w-96 rounded-full bg-brand-600/40 blur-3xl" />
-          <div className="absolute -bottom-32 -left-20 h-96 w-96 rounded-full bg-accent-600/25 blur-3xl" />
-          <div className="absolute inset-0 opacity-[.07]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '28px 28px' }} />
+        <div className="relative hidden overflow-hidden bg-navy-900 p-12 text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
+          <FrontBackdrop src={front} variant="panel" />
           <Brand dark />
           <div className="relative mt-auto max-w-lg">
+            {known && <p className="mb-4 flex items-center gap-2 text-sm font-semibold text-white/90">{known.logo && <img src={known.logo} alt="" className="h-8 w-8 rounded-lg bg-white object-contain p-0.5" />}{known.name}</p>}
             <span className="chip bg-white/10 text-brand-100 ring-1 ring-inset ring-white/15"><Sparkles className="h-3.5 w-3.5 text-accent-400" /> {ADMIN_APP ? 'For school owners' : 'One app for your whole school'}</span>
             <h1 className="mt-6 text-5xl font-extrabold leading-[1.05] tracking-tight">
               {ADMIN_APP ? <>Run your school <span className="text-brand-400">your way</span><span className="text-accent-500">.</span></> : <>Your school, <span className="text-brand-400">in your pocket</span><span className="text-accent-500">.</span></>}
@@ -57,9 +60,15 @@ function Shell({ children }) {
             <span className="flex items-center gap-1.5"><Smartphone className="h-4 w-4" /> Android, iPhone & web</span>
           </div>
         </div>
-        <div className="flex min-h-screen flex-col px-5 py-8 sm:px-10 lg:px-16">
-          <div className="lg:hidden"><Brand /></div>
-          <div className="mx-auto my-auto w-full max-w-md py-10">{children}</div>
+        <div className="flex min-h-screen flex-col px-5 pb-8 pt-0 sm:px-10 lg:px-16 lg:pt-8">
+          <div className="relative -mx-5 mb-2 h-52 sm:-mx-10 lg:hidden">
+            <FrontBackdrop src={front} variant="top" />
+            <div className="relative flex h-full flex-col justify-between px-5 pb-3 pt-6 sm:px-10">
+              <span className="w-fit rounded-2xl bg-white/90 px-3 py-2 shadow-sm backdrop-blur dark:bg-navy-900/80"><Brand /></span>
+              {known && <p className="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-white">{known.logo && <img src={known.logo} alt="" className="h-7 w-7 rounded-lg bg-white object-contain p-0.5 shadow-sm" />}{known.name}</p>}
+            </div>
+          </div>
+          <div className="mx-auto my-auto w-full max-w-md py-6 lg:py-10">{children}</div>
           <Footer />
         </div>
       </div>

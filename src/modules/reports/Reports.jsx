@@ -31,11 +31,11 @@ function useReports() {
 export default function Reports() {
   const reports = useReports();
   const user = useCurrentUser();
-  const allowed = (r) => (r.roles ? r.roles.includes(user.role) : user.role === 'admin' || user.role === 'headteacher' || (r.finance && user.role === 'accountant'));
+  const allowed = (r) => user.role === 'superadmin' || (r.roles ? r.roles.includes(user.role) : user.role === 'admin' || user.role === 'headteacher' || (r.finance && user.role === 'accountant'));
   const keys = Object.keys(reports).filter((k) => allowed(reports[k]));
   const [key, setKey] = useState(keys[0]);
   const rep = reports[key];
-  const rows = useMemo(() => rep.rows().map((r, i) => ({ id: i, ...r })), [rep]);
+  const rows = useMemo(() => (rep?.rows?.() || []).map((r, i) => ({ id: i, ...r })), [rep]);
   const cols = rows[0] ? Object.keys(rows[0]).filter((k) => k !== 'id').map((k, i) => ({ key: k, label: k, render: i === 0 ? (r) => <span className="font-semibold">{r[k]}</span> : undefined })) : [];
   return (
     <>

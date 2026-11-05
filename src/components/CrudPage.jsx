@@ -23,6 +23,9 @@ export default function CrudPage({
   pageSize,
   modalSize,
   onSaved,
+  onDelete, // (ids) => void — custom delete (e.g. also removes linked records); default removes the rows
+  deleteNote, // (rows) => string — extra line for the confirmation
+  bulkDelete = true,
 }) {
   const all = useDB((s) => s[collection]);
   const add = useDB((s) => s.add);
@@ -47,12 +50,20 @@ export default function CrudPage({
     setEditing(null);
   };
 
-  const del = async (row) => {
-    if (await confirmDialog(`Delete ${noun}?`, 'This cannot be undone.', { confirmLabel: 'Delete' })) {
-      remove(collection, row.id);
-      toast.success(`${cap(noun)} deleted`);
-    }
+  const removeMany = useDB((s) => s.removeMany);
+  const delRows = async (list, done) => {
+    const many = list.length > 1;
+    const what = many ? `${list.length} ${plural(noun)}` : noun;
+    const note = deleteNote?.(list);
+    if (!(await confirmDialog(`Delete ${what}?`, `${note ? note + ' ' : ''}This cannot be undone.`, { confirmLabel: 'Delete' }))) return;
+    const ids = list.map((r) => r.id);
+    if (onDelete) onDelete(ids);
+    else if (many) removeMany(collection, ids);
+    else remove(collection, ids[0]);
+    toast.success(many ? `${list.length} ${plural(noun)} deleted` : `${cap(noun)} deleted`);
+    done?.();
   };
+  const del = (row) => delRows([row]);
 
   const cols = canEdit
     ? [
@@ -81,6 +92,7 @@ export default function CrudPage({
         searchText={searchText}
         initialSort={initialSort}
         pageSize={pageSize}
+        bulk={canEdit && canDelete && bulkDelete ? (list, clear) => <Button size="sm" variant="soft-red" icon={Trash2} onClick={() => delRows(list, clear)}>Delete {list.length}</Button> : undefined}
         toolbar={
           <>
             {toolbar}
@@ -108,3 +120,4 @@ export default function CrudPage({
 }
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const plural = (n) => (/(s|sh|ch|x)$/.test(n) ? n + 'es' : /[^aeiou]y$/.test(n) ? n.slice(0, -1) + 'ies' : n + 's');

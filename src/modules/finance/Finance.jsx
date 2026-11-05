@@ -69,6 +69,7 @@ function Invoices() {
   const rows = db.invoices.filter((i) => i.termId === termId).map((i) => ({ ...i, st: invoiceStatus(i, db.payments) })).filter((i) => !status || i.st.label === status);
 
   const generate = async () => {
+    if (!termId) return toast.error('No term chosen', 'Add your terms in Classes & Subjects → Terms, then choose one here');
     const billed = new Set(db.invoices.filter((i) => i.termId === termId).map((i) => i.studentId));
     const todo = db.students.filter((s) => s.status === 'Active' && !billed.has(s.id));
     if (!todo.length) return toast.info('All active students already billed for this term');
@@ -76,15 +77,17 @@ function Invoices() {
     let n = db.invoices.length;
     const recs = todo.map((s) => {
       const c = L.cls(s.classId);
-      const items = [...db.feeStructures.find((f) => f.section === c.section).items];
-      if (s.boarding === 'Boarder') items.push({ name: 'Boarding & Feeding', amount: db.boardingFee });
+      const items = [...(db.feeStructures.find((f) => f.section === c?.section)?.items || [])].filter((i) => Number(i.amount) > 0);
+      if (s.boarding === 'Boarder' && Number(db.boardingFee) > 0) items.push({ name: 'Boarding & Feeding', amount: Number(db.boardingFee) });
       const r = db.routes.find((x) => x.id === s.busRouteId);
-      if (r) items.push({ name: 'Transport', amount: r.fee });
+      if (r && Number(r.fee) > 0) items.push({ name: 'Transport', amount: Number(r.fee) });
+      if (!items.length) return null;
       n++;
-      return { id: uid('inv'), invoiceNo: `INV-${termId.slice(2, 4)}${termId.slice(-1)}-${String(n).padStart(4, '0')}`, studentId: s.id, termId, date: TODAY, dueDate: TODAY, items, discount: 0, discountReason: '', total: sum(items, (i) => i.amount) };
-    });
+      return { id: uid('inv'), invoiceNo: `INV-${termId.slice(2, 4)}${termId.slice(-1)}-${String(n).padStart(4, '0')}`, studentId: s.id, termId, date: TODAY, dueDate: TODAY, items, discount: 0, discountReason: '', total: sum(items, (i) => Number(i.amount)) };
+    }).filter(Boolean);
+    if (!recs.length) return toast.error('No fees set', 'Enter the amounts in Fees & Finance → Fee structures first');
     db.addMany('invoices', recs);
-    toast.success('Bills generated', `${recs.length} invoices created`);
+    toast.success('Bills generated', `${recs.length} invoices created${recs.length < todo.length ? ` · ${todo.length - recs.length} skipped (no fees set for their level)` : ''}`);
   };
 
   return (
@@ -202,7 +205,12 @@ function Arrears() {
 
 function FeeStructures() {
   const db = useDB();
-  const [draft, setDraft] = useState(() => JSON.parse(JSON.stringify(db.feeStructures)));
+  // Every level the school has gets a card, even if no fees were set for it yet.
+  const [draft, setDraft] = useState(() => {
+    const list = JSON.parse(JSON.stringify(db.feeStructures || []));
+    const levels = SECTIONS.filter((sec) => db.classes.some((c) => c.section === sec) && !list.some((f) => f.section === sec));
+    return [...list, ...levels.map((sec) => ({ id: `fee_${sec.slice(0, 2).toLowerCase()}`, section: sec, items: [{ name: 'Tuition', amount: 0 }] }))].sort((a, b) => SECTIONS.indexOf(a.section) - SECTIONS.indexOf(b.section));
+  });
   const [boarding, setBoarding] = useState(db.boardingFee);
   const setItem = (fi, ii, patch) => setDraft(draft.map((f, i) => (i === fi ? { ...f, items: f.items.map((it, j) => (j === ii ? { ...it, ...patch } : it)) } : f)));
   const save = () => {
@@ -219,7 +227,7 @@ function FeeStructures() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-3">
         {draft.map((f, fi) => (
           <Card key={f.id}>
-            <CardHeader title={f.section} subtitle={`Per ${f.section === 'Diploma' ? 'semester' : 'term'} · total ${money(sum(f.items, (i) => i.amount))}`} icon={FileText} />
+            <CardHeader title={f.section} subtitle={`Per ${f.section === 'Diploma' ? 'semester' : 'term'} · total ${money(sum(f.items, (i) => Number(i.amount) || 0))}`} icon={FileText} />
             <div className="space-y-2 p-5">
               {f.items.map((it, ii) => (
                 <div key={ii} className="flex items-center gap-2">
@@ -248,7 +256,7 @@ function Expenses() {
       defaults={{ date: TODAY, method: 'Bank Transfer', category: 'Administration', approvedBy: 'stf_001' }}
       fields={[
         { name: 'date', label: 'Date', type: 'date', required: true },
-        { name: 'category', label: 'Category', type: 'select', options: db.expenseCategories, required: true },
+        { name: 'category', label: 'Category', type: 'select', options: db.expenseCategories, editable: true, required: true },
         { name: 'description', label: 'Description', required: true, span: 2 },
         { name: 'amount', label: 'Amount', type: 'number', required: true },
         { name: 'payee', label: 'Payee / vendor' },

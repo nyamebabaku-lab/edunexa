@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, Phone, Mail, BookOpen, Banknote, CalendarOff, School, IdCard } from 'lucide-react';
+import { ArrowLeft, Pencil, Phone, Mail, BookOpen, Banknote, CalendarOff, School, IdCard, Trash2 } from 'lucide-react';
 import { useDB } from '../../data/store';
 import { useLookups, useCurrentUser } from '../../data/selectors';
 import { EditableAvatar, Portrait } from '../../components/PhotoEditor';
@@ -10,7 +10,8 @@ import { QRCode } from '../../components/QR';
 import { badgeToken } from '../../lib/gate';
 import { fmtDate, money } from '../../lib/format';
 import { payslip } from '../../lib/payroll';
-import { Card, CardHeader, Badge, Button, KeyValue, FormModal, EmptyState, toast } from '../../components/ui';
+import { Card, CardHeader, Badge, Button, KeyValue, FormModal, EmptyState, toast, confirmDialog } from '../../components/ui';
+import { deleteStaff } from '../../lib/cleanup';
 import { staffFields } from './Staff';
 import { photoKey, applyPhotoChange } from '../../data/photos';
 
@@ -47,9 +48,17 @@ export default function StaffProfile() {
             <span className="flex items-center gap-1.5"><Mail className="h-4 w-4 text-brand-600" /> {s.email}</span>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="secondary" icon={IdCard} onClick={() => setCard(true)}>Staff ID</Button>
           <Button icon={Pencil} onClick={() => setEdit(true)}>Edit</Button>
+          {['admin', 'superadmin'].includes(user.role) && (
+            <Button variant="soft-red" icon={Trash2} onClick={async () => {
+              if (!(await confirmDialog(`Delete ${s.firstName} ${s.lastName}?`, 'Their subject allocations and leave records are removed and they are taken off as class teacher. Lessons and materials they created stay. To keep their record, set the status to Exited instead. This cannot be undone.', { confirmLabel: 'Delete' }))) return;
+              deleteStaff([s.id]);
+              toast.success('Staff member deleted');
+              navigate('/staff');
+            }}>Delete</Button>
+          )}
         </div>
       </Card>
 

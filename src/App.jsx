@@ -2,7 +2,7 @@ import { useEffect, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ShieldAlert } from 'lucide-react';
 import { useDB, useSession } from './data/store';
-import { useCurrentUser } from './data/selectors';
+import { useCurrentUser, usePortalStudent } from './data/selectors';
 import { canAccess } from './lib/permissions';
 import { Toaster, EmptyState, Card } from './components/ui';
 import { Loader2 } from 'lucide-react';
@@ -13,6 +13,7 @@ import { LIVE, storeKey } from './config';
 import { useLive } from './data/sync';
 import { applyTheme, applyBranding } from './lib/theme';
 import { setCurrencySymbol } from './lib/format';
+import { rememberSchool } from './lib/front';
 
 // Pages load on demand so the first visit is light on slow connections; the service worker caches them all for offline use.
 const Dashboard = lazy(() => import('./modules/dashboard/Dashboard'));
@@ -64,10 +65,18 @@ function PageLoader() {
 function Guard({ k, children }) {
   const user = useCurrentUser();
   const modules = useDB((s) => s.settings.modules);
+  const { student } = usePortalStudent();
   if (!canAccess(user.role, k, modules))
     return (
       <Card>
         <EmptyState icon={ShieldAlert} title="No access" text="Your role does not have permission to view this page." />
+      </Card>
+    );
+  // Parents and students see their pages once the school has linked their record.
+  if (['parent', 'student'].includes(user.role) && !student && !['communication', 'calendar'].includes(k))
+    return (
+      <Card>
+        <EmptyState icon={ShieldAlert} title={user.role === 'parent' ? 'No child linked yet' : 'Your record is not linked yet'} text="This page fills in once the school links your account to the student record. Ask the school office to check the admission number." />
       </Card>
     );
   return children;
@@ -84,6 +93,10 @@ export default function App() {
   }, [dark]);
   useEffect(() => applyTheme(settings.theme), [settings.theme]);
   useEffect(() => applyBranding(settings), [settings.logo, settings.appName, settings.schoolName]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Remember this school's name, logo and picture so the sign-in page shows them next time on this device.
+  useEffect(() => {
+    if (LIVE && phase === 'ready' && user && user.role !== 'superadmin') rememberSchool(settings);
+  }, [phase, user?.role, settings.schoolName, settings.logo, settings.frontImage, settings.motto]); // eslint-disable-line react-hooks/exhaustive-deps
   // Keep tabs on the same device in sync (e.g. the gate kiosk and a phone-view tab).
   useEffect(() => {
     const h = (e) => {

@@ -39,7 +39,7 @@ export default defineConfig({
       },
       workbox: {
         // The whole app (every page) is cached on first visit so it opens with no internet.
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,jpg,woff2}'],
         // The main app's folder also holds the admin and demo apps; never cache or answer for them.
         globIgnores: APP === 'main' ? ['admin/**', 'demo/**'] : [],
         navigateFallbackDenylist: APP === 'main' ? [/\/admin\//, /\/demo\//] : [],

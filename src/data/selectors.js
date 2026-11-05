@@ -41,7 +41,10 @@ export const useLookups = () => {
   }, [students, classes, subjects, staff, parents]);
 };
 
-export const sortedClasses = (classes) => [...classes].sort((a, b) => a.order - b.order);
+export const sortedClasses = (classes) => [...classes].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
+
+/** Lesson periods and breaks in time order. */
+export const sortedPeriods = (periods) => [...(periods || [])].sort((a, b) => String(a.start || '').localeCompare(String(b.start || '')));
 
 export const invoiceNet = (inv) => (inv.total || 0) - (inv.discount || 0);
 

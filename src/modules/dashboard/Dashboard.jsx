@@ -19,18 +19,25 @@ import { Card, CardHeader, StatCard, Badge, Avatar, Button, Progress, EmptyState
 import { useChartTheme, axisProps, ChartTooltip, Legend } from '../../components/charts';
 import { ingredientLevel, useCanteenIncome, CAT_ICON } from '../canteen/Canteen';
 import { sessionStatus } from '../../lib/live';
+import { sortedPeriods } from '../../data/selectors';
+import { FrontBackdrop, useFrontImage } from '../../components/FrontImage';
 import { photoKey } from '../../data/photos';
 
 function Hello({ name, sub, display }) {
   const h = new Date().getHours();
   const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  const front = useFrontImage();
+  const school = useDB((s) => s.settings.schoolName);
   return (
-    <div className="mb-6 flex flex-col gap-1">
-      <p className="text-sm font-semibold text-accent-600">{fmtDate(TODAY, 'EEEE, d MMMM yyyy')}</p>
-      <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
-        {greet}, {display || name.replace(/^(Dr\. Mrs\.|Mrs\.|Mr\.|Ms\.)\s/, '').split(' ')[0]}
-      </h1>
-      {sub && <p className="text-sm text-slate-500">{sub}</p>}
+    <div className="relative mb-6 overflow-hidden rounded-3xl px-5 py-6 text-white shadow-soft sm:px-7 sm:py-8">
+      <FrontBackdrop src={front} variant="banner" />
+      <div className="relative flex flex-col gap-1">
+        <p className="text-sm font-semibold text-white/80">{fmtDate(TODAY, 'EEEE, d MMMM yyyy')}{school && !String(sub || '').includes(school) ? ` · ${school}` : ''}</p>
+        <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+          {greet}, {display || name.replace(/^(Dr\. Mrs\.|Mrs\.|Mr\.|Ms\.)\s/, '').split(' ')[0]}
+        </h1>
+        {sub && <p className="max-w-2xl text-sm text-white/85">{sub}</p>}
+      </div>
     </div>
   );
 }
@@ -361,7 +368,7 @@ function TeacherDashboard({ user }) {
   const formClass = db.classes.find((c) => c.classTeacherId === me);
   const myStudents = db.students.filter((s) => myClassIds.includes(s.classId));
   const day = todayName();
-  const schedule = db.periods
+  const schedule = sortedPeriods(db.periods)
     .filter((p) => !p.isBreak)
     .flatMap((p) =>
       myClassIds
@@ -523,6 +530,16 @@ function FamilyDashboard({ user }) {
   const navigate = useNavigate();
   const { student, children } = usePortalStudent();
   const isParent = user.role === 'parent';
+  if (!student)
+    return (
+      <>
+        <Hello name={user.name} sub={isParent ? 'Parent / guardian' : 'Student'} />
+        <Card className="mb-6">
+          <EmptyState icon={GraduationCap} title={isParent ? 'No child linked yet' : 'Your record is not linked yet'} text={isParent ? "Your child's school record will show here once the school links it to your account. Ask the school office to check your child's admission number." : 'Ask the school office to check your admission number.'} />
+        </Card>
+        <Notices audience={isParent ? ['Parents'] : ['Students']} />
+      </>
+    );
   const kids = isParent ? children : [student];
   const due = db.assignments
     .filter((a) => a.classId === student.classId && a.dueDate >= TODAY)
@@ -545,7 +562,7 @@ function FamilyDashboard({ user }) {
           <Card>
             <CardHeader title={`Today · ${day}`} icon={Clock} action={<Link to="/timetable" className="text-xs font-semibold text-brand-600">Timetable</Link>} />
             <div className="grid grid-cols-2 gap-2 p-5 sm:grid-cols-4">
-              {db.periods
+              {sortedPeriods(db.periods)
                 .filter((p) => !p.isBreak)
                 .map((p) => (
                   <div key={p.id} className="rounded-xl bg-slate-50 p-3 dark:bg-white/5">

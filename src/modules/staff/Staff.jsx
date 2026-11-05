@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, GraduationCap, CalendarOff, Banknote, Check, X } from 'lucide-react';
 import { useDB } from '../../data/store';
-import { useLookups, TODAY } from '../../data/selectors';
+import { useLookups, useCurrentUser, TODAY } from '../../data/selectors';
+import { deleteStaff } from '../../lib/cleanup';
 import { fmtDate, money, sum } from '../../lib/format';
 import { Avatar, Badge, PageHeader, StatCard, Tabs, Select, IconButton, toast } from '../../components/ui';
 import { PhotoField } from '../../components/PhotoEditor';
@@ -48,6 +49,10 @@ export default function Staff() {
   const [tab, setTab] = useState('staff');
   const [role, setRole] = useState('');
   const pending = leaves.filter((l) => l.status === 'Pending');
+  const user = useCurrentUser();
+  const classes = useDB((s) => s.classes);
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const classesLed = (id) => classes.some((c) => c.classTeacherId === id);
 
   return (
     <>
@@ -71,7 +76,9 @@ export default function Staff() {
           searchText={(s) => `${s.firstName} ${s.lastName} ${s.role} ${s.department} ${s.staffNo}`}
           toolbar={<Select className="!w-auto" value={role} onChange={(e) => setRole(e.target.value)} options={STAFF_ROLES} placeholder="All roles" />}
           fields={staffFields}
-          canDelete={false}
+          canDelete={isAdmin}
+          onDelete={deleteStaff}
+          deleteNote={(list) => `Their subject allocations and leave records are removed${list.some((x) => classesLed(x.id)) ? ', and they are taken off as class teacher' : ''}. Lessons and materials they created stay.`}
           columns={[
             {
               key: 'name',

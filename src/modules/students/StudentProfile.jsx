@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, IdCard, ArrowUpRight, Phone, Mail, MapPin, HeartPulse, Bus, BedDouble, BookOpen, User, Award, ClipboardCheck, Wallet, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Pencil, IdCard, ArrowUpRight, Phone, Mail, MapPin, HeartPulse, Bus, BedDouble, BookOpen, User, Award, ClipboardCheck, Wallet, ShieldAlert, Trash2 } from 'lucide-react';
 import { useDB } from '../../data/store';
 import { useLookups, useCurrentUser, attendanceStats, loanStatus, sortedClasses } from '../../data/selectors';
 import { fullName, fmtDate, age, money } from '../../lib/format';
@@ -12,7 +12,7 @@ import { SchoolLogo } from '../../components/layout/Logo';
 import { QRCode } from '../../components/QR';
 import { EditableAvatar, Portrait } from '../../components/PhotoEditor';
 import { badgeToken } from '../../lib/gate';
-import { studentFields } from './Students';
+import { studentFields, resolveParent, confirmDeleteStudents } from './Students';
 import { StudentStatement } from '../finance/shared';
 import { photoKey, applyPhotoChange } from '../../data/photos';
 
@@ -160,6 +160,7 @@ export default function StudentProfile() {
             <Button variant="secondary" icon={IdCard} onClick={() => setIdCard(true)}>ID card</Button>
             {isAdmin && <Button variant="secondary" icon={ArrowUpRight} onClick={() => setMove({ classId: student.classId, status: student.status })}>Promote / Transfer</Button>}
             {isAdmin && <Button icon={Pencil} onClick={() => setEdit(true)}>Edit</Button>}
+            {isAdmin && <Button variant="soft-red" icon={Trash2} onClick={async () => { if (await confirmDeleteStudents([student])) navigate('/students'); }}>Delete</Button>}
           </div>
         </div>
       </Card>
@@ -349,7 +350,9 @@ export default function StudentProfile() {
         fields={studentFields(db.classes, db.parents, db.routes, db.dorms)}
         initial={student}
         onSubmit={({ _photo, ...v }) => {
-          db.update('students', student.id, v);
+          const parentId = resolveParent(v.parentId);
+          if (!parentId) return;
+          db.update('students', student.id, { ...v, parentId });
           applyPhotoChange(photoKey('Student', student.id), _photo);
           toast.success('Student updated');
           setEdit(false);

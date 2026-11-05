@@ -1,56 +1,94 @@
 // Owner/Admin dashboard header in the live apps: school code to share, accounts waiting, and first-time set-up.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Copy, Share2, RefreshCw, Hourglass, ArrowRight, Rocket, FileSpreadsheet, Check } from 'lucide-react';
+import { Copy, Share2, RefreshCw, Hourglass, ArrowRight, Rocket, FileSpreadsheet, Check, X } from 'lucide-react';
 import { useDB } from '../../data/store';
 import { useLive, regenerateCode } from '../../data/sync';
 import { buildStarter, STARTER_SECTIONS } from '../../data/starter';
 import { SITE, ADMIN_SITE, APK_URL } from '../../config';
 import { Button, Card, Badge, confirmDialog, toast, Spinner, cx } from '../../components/ui';
 
+/** Creates the full GES structure (all levels) once; deterministic ids make a second run harmless. */
+export function createStarter(sections = STARTER_SECTIONS, { classes = true } = {}) {
+  const st = buildStarter(sections);
+  const db = useDB.getState();
+  if (!db.terms.length) db.bulkUpsert('terms', st.terms);
+  if (!db.periods.length) db.bulkUpsert('periods', st.periods);
+  db.bulkUpsert('subjects', st.subjects);
+  if (classes) db.bulkUpsert('classes', st.classes);
+  else {
+    // The school made its own classes: give each one the standard subjects of its level.
+    const bySec = (sec) => st.subjects.filter((x) => x.section === sec).map((x) => x.id);
+    db.classes.filter((c) => !c.subjectIds?.length).forEach((c) => db.update('classes', c.id, { subjectIds: bySec(c.section) }));
+  }
+  if (!db.feeStructures.length) db.setKey('feeStructures', st.feeStructures);
+  if (!db.expenseCategories.length) db.setKey('expenseCategories', st.expenseCategories);
+  db.updateSettings({ ...(db.settings.currentTerm ? {} : st.settings), starterDone: true });
+  return st;
+}
+
+/** Removes a whole level (its classes and subjects) — for levels the school does not have. Classes with students stay. */
+export function removeLevel(section) {
+  const db = useDB.getState();
+  const busy = new Set(db.students.map((x) => x.classId));
+  const classes = db.classes.filter((c) => c.section === section && !busy.has(c.id));
+  const kept = db.classes.filter((c) => c.section === section && busy.has(c.id)).length;
+  const classIds = new Set(classes.map((c) => c.id));
+  db.removeMany('classes', [...classIds]);
+  db.removeMany('allocations', db.allocations.filter((x) => classIds.has(x.classId)).map((x) => x.id));
+  if (!kept) db.removeMany('subjects', db.subjects.filter((x) => x.section === section).map((x) => x.id));
+  db.setKey('timetable', (t) => Object.fromEntries(Object.entries(t || {}).filter(([k]) => !classIds.has(k))));
+  db.setKey('feeStructures', (f) => (kept ? f : (f || []).filter((x) => x.section !== section)));
+  return { removed: classIds.size, kept };
+}
+
 function StarterCard() {
-  const [sections, setSections] = useState(['Early Years', 'Primary', 'JHS']);
-  const [busy, setBusy] = useState(false);
+  const classes = useDB((s) => s.classes);
+  const subjects = useDB((s) => s.subjects);
+  const terms = useDB((s) => s.terms);
   const navigate = useNavigate();
-  const toggle = (s) => setSections((x) => (x.includes(s) ? x.filter((y) => y !== s) : [...x, s]));
-  const create = () => {
-    setBusy(true);
-    const st = buildStarter(STARTER_SECTIONS.filter((s) => sections.includes(s)));
-    const db = useDB.getState();
-    db.addMany('terms', st.terms);
-    db.addMany('periods', st.periods);
-    db.addMany('subjects', st.subjects);
-    db.addMany('classes', st.classes);
-    db.setKey('feeStructures', st.feeStructures);
-    db.setKey('expenseCategories', st.expenseCategories);
-    db.updateSettings(st.settings);
-    toast.success('School structure created', `${st.classes.length} classes, ${st.subjects.length} subjects and 3 terms. Rename or delete any in Classes & Subjects.`);
-    setBusy(false);
+  const levels = STARTER_SECTIONS.filter((sec) => classes.some((c) => c.section === sec));
+  const drop = async (sec) => {
+    const n = classes.filter((c) => c.section === sec).length;
+    if (!(await confirmDialog(`Remove ${sec}?`, `Deletes the ${n} ${sec} class${n === 1 ? '' : 'es'} and their subjects. Use this if your school does not have ${sec}. Classes that already have students are kept.`, { confirmLabel: 'Remove' }))) return;
+    const r = removeLevel(sec);
+    toast.success(`${sec} removed`, r.kept ? `${r.kept} class(es) with students were kept` : `${r.removed} classes removed`);
   };
   return (
     <Card className="overflow-hidden">
       <div className="bg-gradient-to-br from-brand-700 to-brand-500 p-6 text-white">
-        <p className="flex items-center gap-2 text-sm font-semibold text-brand-100"><Rocket className="h-4 w-4" /> Welcome — let's set up your school</p>
-        <h3 className="mt-2 text-2xl font-extrabold">Your school is empty</h3>
-        <p className="mt-1 text-sm text-brand-100">Start with the Ghana GES class and subject structure, or bring everything in from Excel.</p>
+        <p className="flex items-center gap-2 text-sm font-semibold text-brand-100"><Rocket className="h-4 w-4" /> Welcome — your school is ready to fill in</p>
+        <h3 className="mt-2 text-2xl font-extrabold">{subjects.length ? 'We set up your classes, subjects and terms' : 'Finish setting up your school'}</h3>
+        <p className="mt-1 text-sm text-brand-100">{classes.length} classes, {subjects.length} subjects and {terms.length} terms from the Ghana GES structure. Remove the levels you don't have, and add, rename or delete any class or subject in Classes & Subjects.</p>
       </div>
       <div className="grid gap-6 p-6 md:grid-cols-2">
         <div>
-          <p className="font-bold text-slate-900 dark:text-white">1. Quick start structure</p>
-          <p className="mt-1 text-sm text-slate-500">Which levels does your school have?</p>
+          <p className="font-bold text-slate-900 dark:text-white">1. Keep only your levels</p>
+          <p className="mt-1 text-sm text-slate-500">Tap ✕ to remove a level your school does not have.</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {STARTER_SECTIONS.map((s) => (
-              <button key={s} onClick={() => toggle(s)} className={cx('flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold ring-1 ring-inset transition', sections.includes(s) ? 'bg-brand-50 text-brand-700 ring-brand-300 dark:bg-brand-500/15 dark:text-brand-200' : 'text-slate-500 ring-slate-200 dark:ring-white/10')}>
-                {sections.includes(s) && <Check className="h-3.5 w-3.5" />}{s === 'Early Years' ? 'Creche – KG' : s}
-              </button>
+            {levels.map((sec) => (
+              <span key={sec} className="flex items-center gap-1.5 rounded-xl bg-brand-50 py-1.5 pl-3 pr-1.5 text-sm font-semibold text-brand-700 ring-1 ring-inset ring-brand-200 dark:bg-brand-500/15 dark:text-brand-200 dark:ring-brand-500/30">
+                <Check className="h-3.5 w-3.5" />{sec === 'Early Years' ? 'Creche – KG' : sec}
+                <button aria-label={`Remove ${sec}`} onClick={() => drop(sec)} className="rounded-lg p-1 text-brand-400 hover:bg-white hover:text-accent-600 dark:hover:bg-white/10"><X className="h-3.5 w-3.5" /></button>
+              </span>
             ))}
+            {!levels.length && <Button size="sm" icon={Rocket} onClick={() => { createStarter(); toast.success('Structure created again'); }}>Create GES structure again</Button>}
           </div>
-          <Button className="mt-4" icon={busy ? Spinner : Rocket} disabled={!sections.length || busy} onClick={create}>Create classes, subjects & terms</Button>
+          {classes.length > 0 && !subjects.length && (
+            <Button size="sm" className="mt-3" icon={Rocket} onClick={() => { const st = createStarter(STARTER_SECTIONS, { classes: false }); toast.success('Subjects, terms and bell times added', `${st.subjects.length} GES subjects — your classes were kept`); }}>Add standard subjects, terms & bell times</Button>
+          )}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={() => navigate('/classes')}>Classes & Subjects</Button>
+            <Button size="sm" variant="secondary" onClick={() => navigate('/timetable')}>Timetable</Button>
+          </div>
         </div>
         <div>
-          <p className="font-bold text-slate-900 dark:text-white">2. Import your existing records</p>
-          <p className="mt-1 text-sm text-slate-500">Download our Excel template, fill in students & parents, staff, classes, fee balances, past scores, books and store stock — then upload it. Works offline too.</p>
-          <Button variant="secondary" className="mt-4" icon={FileSpreadsheet} onClick={() => navigate('/import')}>Import from Excel</Button>
+          <p className="font-bold text-slate-900 dark:text-white">2. Add your people</p>
+          <p className="mt-1 text-sm text-slate-500">Add students and staff one by one, or bring everything in from our Excel template: students & parents, staff, classes, fee balances, past scores, books and store stock. Works offline too.</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button variant="secondary" icon={FileSpreadsheet} onClick={() => navigate('/import')}>Import from Excel</Button>
+            <Button variant="ghost" onClick={() => useDB.getState().updateSettings({ setupSeen: true })}>Hide this</Button>
+          </div>
         </div>
       </div>
     </Card>
@@ -61,6 +99,15 @@ export default function SchoolPanel() {
   const school = useLive((s) => s.school);
   const pending = useDB((s) => s.users.filter((u) => u.status === 'Pending').length);
   const empty = useDB((s) => s.classes.length === 0 && s.students.length === 0);
+  const fresh = useDB((s) => s.students.length === 0 && !s.settings.setupSeen);
+  const starterDone = useDB((s) => s.settings.starterDone || s.subjects.length > 0);
+  // A brand-new school gets the full class, subject and term structure automatically (once).
+  useEffect(() => {
+    if (school?.status === 'active' && empty && !starterDone) {
+      const st = createStarter();
+      toast.success('Classes, subjects and terms created', `${st.classes.length} classes and ${st.subjects.length} subjects — remove any level you don't have`);
+    }
+  }, [school?.status, empty, starterDone]);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
   if (!school) return null;
@@ -81,7 +128,7 @@ export default function SchoolPanel() {
   };
   return (
     <div className="mb-6 space-y-6">
-      {empty && <StarterCard />}
+      {fresh && <StarterCard />}
       <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
         <Card className="flex flex-wrap items-center gap-4 p-5">
           <div className="min-w-0 flex-1">
@@ -104,7 +151,7 @@ export default function SchoolPanel() {
           <Button size="sm" icon={ArrowRight} onClick={() => navigate('/accounts')}>{pending ? 'Review' : 'Accounts'}</Button>
         </Card>
       </div>
-      {!empty && <p className="-mt-2 text-right text-xs"><button className="font-semibold text-brand-600 hover:underline" onClick={() => navigate('/import')}>Import more records from Excel →</button> <span className="text-slate-400">· Admin web: {ADMIN_SITE.replace('https://', '')}</span></p>}
+      {!fresh && <p className="-mt-2 text-right text-xs"><button className="font-semibold text-brand-600 hover:underline" onClick={() => navigate('/import')}>Import more records from Excel →</button> <span className="text-slate-400">· Admin web: {ADMIN_SITE.replace('https://', '')}</span></p>}
       {school.status !== 'active' && <Badge tone="amber">School status: {school.status}</Badge>}
     </div>
   );

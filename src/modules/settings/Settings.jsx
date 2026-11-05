@@ -1,6 +1,9 @@
 import { schoolPrefix, initialsFrom } from '../../lib/numbers';
 import { TODAY } from '../../data/seed';
 import { SchoolSmsCard } from '../accounts/SmsSetup';
+import TermsEditor from '../classes/Terms';
+import { FrontBackdrop } from '../../components/FrontImage';
+import { fileToFront } from '../../lib/front';
 import { MessageSquareText } from 'lucide-react';
 import { LIVE } from '../../config';
 import { useEffect, useRef, useState } from 'react';
@@ -10,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useDB, useSession } from '../../data/store';
 import { useCurrentUser } from '../../data/selectors';
-import { fmtDate, fmtDateTime, fullName } from '../../lib/format';
+import { fmtDateTime, fullName } from '../../lib/format';
 import { SCALES } from '../../lib/grading';
 import { ROLES, NAV, TOGGLEABLE_MODULES, canAccess } from '../../lib/permissions';
 import { PRESETS, applyTheme, fileToLogo, themePalettes } from '../../lib/theme';
@@ -34,6 +37,53 @@ function Toggle({ checked, onChange, label, desc }) {
         <span className={cx('absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition', checked ? 'left-[22px]' : 'left-0.5')} />
       </button>
     </label>
+  );
+}
+
+// ---------------------------------------------------------------- Front-page picture
+function FrontPicture({ s, setS }) {
+  const ref = useRef(null);
+  const [busy, setBusy] = useState(false);
+  const pick = async (f) => {
+    if (!f) return;
+    setBusy(true);
+    try {
+      setS({ ...s, frontImage: await fileToFront(f) });
+      toast.success('Picture ready', 'Save changes to show it on everyone\'s sign-in page and dashboard');
+    } catch (e) {
+      toast.error(e.message);
+    }
+    setBusy(false);
+    if (ref.current) ref.current.value = '';
+  };
+  return (
+    <Card className="p-6">
+      <p className="font-bold text-slate-900 dark:text-white">Front page picture</p>
+      <p className="mt-1 text-sm text-slate-500">A photo of your school for the sign-in page and dashboard. It is blended with your theme colour automatically.</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="relative h-40 overflow-hidden rounded-2xl bg-navy-900 p-4 text-white">
+          <FrontBackdrop src={s.frontImage} variant="panel" />
+          <div className="relative flex h-full flex-col justify-end">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/70">Sign-in page</p>
+            <p className="text-lg font-extrabold leading-tight">{s.schoolName || 'Your school'}</p>
+          </div>
+        </div>
+        <div className="relative h-40 overflow-hidden rounded-2xl p-4 text-white">
+          <FrontBackdrop src={s.frontImage} variant="banner" />
+          <div className="relative">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/70">Dashboard</p>
+            <p className="text-lg font-extrabold leading-tight">Good morning, Ama</p>
+            <p className="text-xs text-white/80">{s.motto || s.schoolName}</p>
+          </div>
+        </div>
+      </div>
+      <input ref={ref} type="file" accept="image/*" className="hidden" onChange={(e) => pick(e.target.files[0])} />
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Button variant="secondary" icon={Upload} disabled={busy} onClick={() => ref.current.click()}>{busy ? 'Preparing…' : s.frontImage ? 'Change picture' : 'Upload picture'}</Button>
+        {s.frontImage && <Button variant="soft-red" icon={Trash2} onClick={() => setS({ ...s, frontImage: null })}>Use the default picture</Button>}
+      </div>
+      <p className="mt-2 text-xs text-slate-500">JPG or PNG, landscape or portrait — a bright photo of your building or pupils works best. It's resized for fast loading on phones.</p>
+    </Card>
   );
 }
 
@@ -106,6 +156,7 @@ function Branding({ s, setS }) {
           </div>
           <p className="mt-3 text-xs text-slate-500">Changes preview live. Pick a dark main colour so white text stays readable.</p>
         </Card>
+        <FrontPicture s={s} setS={setS} />
       </div>
       <Card className="h-fit overflow-hidden xl:sticky xl:top-24">
         <CardHeader title="Preview" />
@@ -319,6 +370,11 @@ export default function Settings() {
   const [tab, setTab] = useState(isSuper ? 'branding' : 'school');
   const [s, setS] = useState(() => clone(db.settings));
   const set = (k) => (e) => setS({ ...s, [k]: e.target.value });
+  // Changes saved straight away elsewhere (term list "Make current", set-up flags) flow into the draft.
+  const live = db.settings;
+  useEffect(() => {
+    setS((d) => ({ ...d, currentTerm: live.currentTerm, academicYear: live.academicYear, starterDone: live.starterDone, setupSeen: live.setupSeen }));
+  }, [live.currentTerm, live.academicYear, live.starterDone, live.setupSeen]);
   const editable = ['branding', 'school', 'academic', 'modules', 'security', 'gate', 'live'].includes(tab);
   const dirty = JSON.stringify(s) !== JSON.stringify(db.settings);
 
@@ -399,22 +455,12 @@ export default function Settings() {
           <Card className="p-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Academic year"><Input value={s.academicYear} onChange={set('academicYear')} /></Field>
-              <Field label="Current term"><Select value={s.currentTerm} onChange={set('currentTerm')} options={db.terms.map((t) => ({ value: t.id, label: t.name }))} /></Field>
+              <Field label="Current term" hint="Add or change terms in the list"><Select value={s.currentTerm || ''} onChange={set('currentTerm')} placeholder={db.terms.length ? undefined : 'Add a term first'} options={[...db.terms].sort((a, b) => String(a.start).localeCompare(String(b.start))).map((t) => ({ value: t.id, label: t.name }))} /></Field>
               <Field label="Library loan period (days)"><Input type="number" value={s.loanDays} onChange={set('loanDays')} /></Field>
               <Field label="Library fine per day"><Input type="number" value={s.libraryFinePerDay} onChange={set('libraryFinePerDay')} /></Field>
             </div>
           </Card>
-          <Card>
-            <CardHeader title="Term dates" icon={CalendarRange} />
-            <div className="divide-y divide-slate-100 p-3 dark:divide-white/5">
-              {db.terms.map((t) => (
-                <div key={t.id} className="flex items-center justify-between px-2 py-3">
-                  <div><p className="text-sm font-semibold">{t.name}</p><p className="text-xs text-slate-500">{fmtDate(t.start)} – {fmtDate(t.end)}</p></div>
-                  {t.id === db.settings.currentTerm && <Badge tone="green" dot>Current</Badge>}
-                </div>
-              ))}
-            </div>
-          </Card>
+          <TermsEditor compact />
         </div>
       )}
 

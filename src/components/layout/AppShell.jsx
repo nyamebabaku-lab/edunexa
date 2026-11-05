@@ -7,6 +7,7 @@ import { navFor, navItem, MOBILE_TABS, ROLES } from '../../lib/permissions';
 import { Avatar, cx, toast, Modal, Button, Field, Input, Spinner } from '../ui';
 import { LIVE } from '../../config';
 import { useLive, signOut } from '../../data/sync';
+import PageBoundary from '../ErrorBoundary';
 import { supabase, friendly } from '../../lib/supabase';
 import CommandPalette from './CommandPalette';
 import { OfflineBanner, SlowChip } from '../NetworkBanner';
@@ -273,7 +274,7 @@ export default function AppShell() {
 
         <main className="mx-auto max-w-[1500px] animate-fade-in px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-12" key={loc.pathname}>
           <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-brand-600" /></div>}>
-            <Outlet />
+            <PageBoundary key={loc.pathname}><Outlet /></PageBoundary>
           </Suspense>
         </main>
       </div>

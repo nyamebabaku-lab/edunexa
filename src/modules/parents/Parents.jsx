@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Phone, MessageSquare } from 'lucide-react';
 import { useDB } from '../../data/store';
-import { useLookups, useBalances } from '../../data/selectors';
+import { useLookups, useBalances, useCurrentUser } from '../../data/selectors';
+import { deleteParents } from '../../lib/cleanup';
 import { fullName, money } from '../../lib/format';
 import { Avatar, Badge, PageHeader, Modal, Card, Button, cx } from '../../components/ui';
 import CrudPage from '../../components/CrudPage';
@@ -14,6 +15,7 @@ export default function Parents() {
   const bal = useBalances();
   const navigate = useNavigate();
   const [view, setView] = useState(null);
+  const user = useCurrentUser();
   const kids = (pid) => students.filter((s) => s.parentId === pid);
   const familyBalance = (pid) => kids(pid).reduce((a, s) => a + bal.get(s.id).balance, 0);
 
@@ -24,7 +26,9 @@ export default function Parents() {
         collection="parents"
         noun="parent"
         onRowClick={setView}
-        canDelete={false}
+        canDelete={user?.role === 'admin' || user?.role === 'superadmin'}
+        onDelete={deleteParents}
+        deleteNote={(list) => { const n = list.reduce((a, p) => a + kids(p.id).length, 0); return n ? `${n} child${n === 1 ? ' stays' : 'ren stay'} in the school with no parent linked — choose a new parent for them later.` : ''; }}
         defaults={{ title: 'Mrs.', gender: 'Female', relation: 'Mother' }}
         searchText={(p) => `${p.firstName} ${p.lastName} ${p.phone} ${p.email} ${kids(p.id).map(fullName).join(' ')}`}
         fields={[

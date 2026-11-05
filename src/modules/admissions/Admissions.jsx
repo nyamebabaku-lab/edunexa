@@ -1,4 +1,5 @@
 import { nextAdmissionNo } from '../../lib/numbers';
+import { LIVE } from '../../config';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ArrowRight, XCircle, CheckCircle2, FileText, LayoutGrid, List, UserPlus, Phone, School } from 'lucide-react';
@@ -15,11 +16,13 @@ const STAGE_TONE = { Applied: 'slate', 'Entrance Exam': 'blue', Interview: 'viol
 export function enrolApplicant(app) {
   const db = useDB.getState();
   const cls = db.classes.find((c) => c.id === app.classId);
-  const [title, ...rest] = app.parentName.split(' ');
-  const parent = db.add('parents', {
+  const [title, ...rest] = String(app.parentName || 'Guardian').trim().split(/\s+/);
+  const digits = (x) => String(x || '').replace(/\D/g, '').slice(-9);
+  const existing = digits(app.parentPhone) && db.parents.find((p) => digits(p.phone) === digits(app.parentPhone));
+  const parent = existing || db.add('parents', {
     title: ['Mr.', 'Mrs.', 'Ms.', 'Dr.'].includes(title) ? title : 'Mr.',
     firstName: (['Mr.', 'Mrs.', 'Ms.', 'Dr.'].includes(title) ? rest : [title, ...rest]).slice(0, -1).join(' ') || rest[0] || title,
-    lastName: app.parentName.split(' ').slice(-1)[0],
+    lastName: String(app.parentName || '').trim().split(/\s+/).slice(-1)[0] || 'Guardian',
     gender: title === 'Mrs.' || title === 'Ms.' ? 'Female' : 'Male',
     relation: title === 'Mrs.' || title === 'Ms.' ? 'Mother' : 'Father',
     phone: app.parentPhone,
@@ -51,9 +54,15 @@ export function enrolApplicant(app) {
     religion: '',
     previousSchool: app.previousSchool,
   });
-  const fs = db.feeStructures.find((f) => f.section === cls.section);
-  const items = [...fs.items, { name: 'Admission Fee', amount: 500 }];
-  if (student.boarding === 'Boarder') items.push({ name: 'Boarding & Feeding', amount: db.boardingFee });
+  const fs = db.feeStructures.find((f) => f.section === cls?.section);
+  const admissionFee = Number(db.settings.admissionFee ?? (LIVE ? 0 : 500)) || 0;
+  const items = [...(fs?.items || []).filter((i) => Number(i.amount) > 0), ...(admissionFee ? [{ name: 'Admission Fee', amount: admissionFee }] : [])];
+  if (student.boarding === 'Boarder' && Number(db.boardingFee) > 0) items.push({ name: 'Boarding & Feeding', amount: Number(db.boardingFee) });
+  // No fees set up yet (new school): enrol without a bill; the accountant can bill later.
+  if (!items.length || !db.settings.currentTerm) {
+    db.update('applications', app.id, { stage: 'Enrolled', studentId: student.id });
+    return student;
+  }
   db.add('invoices', {
     id: uid('inv'),
     invoiceNo: `INV-${db.settings.currentTerm.slice(2, 4)}${db.settings.currentTerm.slice(-1)}-${String(db.invoices.length + 1).padStart(4, '0')}`,
@@ -87,7 +96,7 @@ export default function Admissions() {
     { name: 'lastName', label: 'Surname', required: true },
     { name: 'gender', label: 'Gender', type: 'select', options: ['Male', 'Female'], required: true },
     { name: 'dob', label: 'Date of birth', type: 'date', required: true },
-    { name: 'classId', label: 'Class applying for', type: 'select', options: classOpts, required: true },
+    { name: 'classId', label: 'Class applying for', type: 'select', options: classOpts, required: true, emptyHint: 'No classes yet — add them in Classes & Subjects first' },
     { name: 'boarding', label: 'Day / Boarding', type: 'select', options: ['Day', 'Boarder'] },
     { name: 'previousSchool', label: 'Previous school' },
     { name: 'parentName', label: 'Parent / guardian name', required: true, placeholder: 'e.g. Mrs. Ama Owusu' },
@@ -102,7 +111,7 @@ export default function Admissions() {
       update('applications', v.id, v);
       toast.success('Application updated');
     } else {
-      add('applications', { ...v, appNo: `APP-2027-${String(applications.length + 1).padStart(3, '0')}`, stage: 'Applied', appliedOn: TODAY, boarding: v.boarding || 'Day' });
+      add('applications', { ...v, appNo: `APP-${new Date().getFullYear()}-${String(applications.length + 1).padStart(3, '0')}`, stage: 'Applied', appliedOn: TODAY, boarding: v.boarding || 'Day' });
       toast.success('Application received', `${v.firstName} ${v.lastName} added to the pipeline`);
     }
     setForm(null);

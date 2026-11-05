@@ -5,6 +5,7 @@ import { ROLES } from '../../lib/permissions';
 import { nowISO } from '../../lib/format';
 import { findAccount, checkPassword, hashPassword, passwordProblems, needsOtp, makeOtp, maskContact, newUserRecord, DEFAULT_PASSWORD } from '../../lib/auth';
 import Logo from '../../components/layout/Logo';
+import { FrontBackdrop } from '../../components/FrontImage';
 import { OfflineBanner } from '../../components/NetworkBanner';
 import { Avatar, Button, Field, Input, Select, toast, cx } from '../../components/ui';
 import { userPhotoKey } from '../../data/photos';
@@ -191,10 +192,8 @@ export default function Login() {
     <>
     <OfflineBanner />
     <div className="min-h-screen bg-white dark:bg-navy-950 lg:grid lg:grid-cols-[1.05fr_1fr]">
-      <div className="relative hidden overflow-hidden bg-navy-900 p-12 text-white lg:flex lg:flex-col">
-        <div className="absolute -right-24 -top-24 h-96 w-96 rounded-full bg-brand-600/40 blur-3xl" />
-        <div className="absolute -bottom-32 -left-20 h-96 w-96 rounded-full bg-accent-600/25 blur-3xl" />
-        <div className="absolute inset-0 opacity-[.07]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '28px 28px' }} />
+      <div className="relative hidden overflow-hidden bg-navy-900 p-12 text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
+        <FrontBackdrop src={settings.frontImage} variant="panel" />
         <div className="relative"><Logo dark /></div>
         <div className="relative mt-auto max-w-lg">
           <span className="chip bg-white/10 text-brand-100 ring-1 ring-inset ring-white/15"><Sparkles className="h-3.5 w-3.5 text-accent-400" /> One platform. Every part of your school.</span>
@@ -214,8 +213,11 @@ export default function Login() {
         </div>
       </div>
 
-      <div className="flex min-h-screen flex-col px-5 py-8 sm:px-10 lg:px-16">
-        <div className="lg:hidden"><Logo /></div>
+      <div className="flex min-h-screen flex-col px-5 pb-8 pt-0 sm:px-10 lg:px-16 lg:pt-8">
+        <div className="relative -mx-5 mb-2 h-48 sm:-mx-10 lg:hidden">
+          <FrontBackdrop src={settings.frontImage} variant="top" />
+          <div className="relative px-5 pt-6 sm:px-10"><span className="inline-block rounded-2xl bg-white/90 px-3 py-2 shadow-sm backdrop-blur dark:bg-navy-900/80"><Logo /></span></div>
+        </div>
         <div className="mx-auto my-auto w-full max-w-xl py-10">
           {view === 'roles' && (
             <>
