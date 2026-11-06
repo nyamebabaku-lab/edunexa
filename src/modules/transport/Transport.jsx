@@ -147,7 +147,7 @@ function StopEditor({ value, onChange }) {
           <Input type="time" value={s.am || ''} onChange={(e) => set(i, { am: e.target.value })} aria-label="Morning pick-up" />
           <Input type="time" value={s.pm || ''} onChange={(e) => set(i, { pm: e.target.value })} aria-label="Afternoon drop-off" />
           <div className="col-span-2 flex items-center justify-end gap-1 sm:col-span-1">
-            {s.lat != null ? <Badge tone="green" title="Saved from the bus">📍</Badge> : <Badge tone="slate" title="The crew saves it from the bus">no pin</Badge>}
+            {s.lat != null ? <Badge tone="green" title="Saved from the bus"><MapPin className="h-3 w-3" /></Badge> : <Badge tone="slate" title="The crew saves it from the bus">no pin</Badge>}
             <IconButton icon={ArrowUp} label="Move up" disabled={i === 0} onClick={() => move(i, -1)} className="disabled:opacity-30" />
             <IconButton icon={ArrowDown} label="Move down" disabled={i === list.length - 1} onClick={() => move(i, 1)} className="disabled:opacity-30" />
             <IconButton icon={Trash2} label="Remove stop" className="hover:!text-accent-600" onClick={() => onChange(list.filter((_, j) => j !== i))} />
@@ -249,7 +249,7 @@ function Routes() {
                 <thead><tr className="text-left text-[11px] uppercase text-slate-400"><th className="py-1">#</th><th>Stop</th><th>Pick-up</th><th>Drop-off</th><th>Riders</th></tr></thead>
                 <tbody>
                   {stopsOf(r).map((s, i) => (
-                    <tr key={s.id} className="border-t border-slate-100 dark:border-white/5"><td className="py-1.5 text-slate-400">{i + 1}</td><td className="font-medium">{s.name} {s.lat != null && '📍'}</td><td>{s.am || '—'}</td><td>{s.pm || '—'}</td><td>{riders(r.id).filter((x) => x.busStopId === s.id).length}</td></tr>
+                    <tr key={s.id} className="border-t border-slate-100 dark:border-white/5"><td className="py-1.5 text-slate-400">{i + 1}</td><td className="font-medium">{s.name} {s.lat != null && <MapPin className="inline h-3.5 w-3.5 text-emerald-600" aria-label="map pin saved" />}</td><td>{s.am || '—'}</td><td>{s.pm || '—'}</td><td>{riders(r.id).filter((x) => x.busStopId === s.id).length}</td></tr>
                   ))}
                   <tr className="border-t border-slate-100 dark:border-white/5"><td /><td className="py-1.5 font-bold text-accent-600"><School className="mr-1 inline h-3.5 w-3.5" />School</td><td /><td>{r.pmDeparture ? `leaves ${r.pmDeparture}` : ''}</td><td /></tr>
                 </tbody>
