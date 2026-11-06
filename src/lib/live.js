@@ -34,4 +34,7 @@ export function sessionStatus(s, now = new Date()) {
   return 'Scheduled';
 }
 
-export const canHost = (user, session) => user && (user.role === 'admin' || user.role === 'headteacher' || user.role === 'superadmin' || (session && user.linkedId === session.teacherId));
+/** Only the class's own teacher starts and ends it (and runs the room). */
+export const canHost = (user, session) => !!(user && session?.teacherId && user.linkedId === session.teacherId);
+/** Scheduling, editing, deleting and notifying: the teacher, the Head Teacher or the Owner/Admin. */
+export const canManageSession = (user, session) => !!user && (['admin', 'headteacher', 'superadmin'].includes(user.role) || canHost(user, session));

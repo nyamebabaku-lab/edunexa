@@ -369,6 +369,13 @@ export default function LiveRoom() {
   }, [media, pre]);
 
   if (user.role === 'parent') return <StatusScreen icon={ShieldOff} title="Live classes are for teachers and students"><Button onClick={exit}>Back</Button></StatusScreen>;
+  // Large-class video: nobody gets in before the teacher has started the class, and nobody after it ended.
+  if (provider === 'jitsi' && !isHost && session && session.status !== 'Live')
+    return (
+      <StatusScreen icon={session.status === 'Ended' ? CircleSlash : Clock} title={session.status === 'Ended' ? 'The class has ended' : 'Waiting for your teacher to start the class'} text={session.status === 'Ended' ? undefined : "You'll join automatically as soon as the class starts. Keep this page open."}>
+        <Button variant="secondary" onClick={exit}>Back to live classes</Button>
+      </StatusScreen>
+    );
   if (provider === 'jitsi') return <JitsiRoom code={code} session={session} isHost={isHost} me={me} onExit={exit} />;
 
   if (joined && media) {

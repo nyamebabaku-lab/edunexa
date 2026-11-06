@@ -882,6 +882,23 @@ export function buildSeed() {
     canteenSales: canteen.canteenSales,
     clockings: buildClockings({ students, staff, classes, attendance, leaves, today: TODAY }),
     liveSessions,
+    exams: [
+      {
+        id: 'exm_1', name: 'End of Term 1 Exams 2026', termId: settings.currentTerm, start: '2026-12-01', end: '2026-12-04', published: true,
+        notes: 'Arrive 30 minutes before each paper with your pens, pencil and mathematical set. Phones are not allowed in the exam hall.',
+        papers: (() => {
+          const jhs = classes.filter((c) => c.section === 'JHS').map((c) => c.id);
+          const pick = (name) => subjects.find((x) => x.section === 'JHS' && x.name === name)?.id;
+          const inv = staff.filter((x) => x.role === 'Teacher').map((x) => x.id);
+          return [
+            ['2026-12-01', '08:30', '10:30', 'English Language', 'Assembly Hall'], ['2026-12-01', '11:00', '12:30', 'Social Studies', 'Assembly Hall'],
+            ['2026-12-02', '08:30', '10:30', 'Mathematics', 'Assembly Hall'], ['2026-12-02', '11:00', '12:30', 'Religious & Moral Education', 'JHS Block'],
+            ['2026-12-03', '08:30', '10:30', 'Integrated Science', 'Assembly Hall'], ['2026-12-03', '11:00', '12:00', 'Computing', 'ICT Lab'],
+            ['2026-12-04', '08:30', '10:00', 'French', 'JHS Block'], ['2026-12-04', '10:30', '12:00', 'Career Technology', 'JHS Block'],
+          ].filter(([, , , n]) => pick(n)).map(([date, start, end, n, room], i) => ({ id: `ppr_${i + 1}`, date, start, end, subjectId: pick(n), classIds: jhs, room, invigilatorId: inv[i % inv.length] || '', note: '' }));
+        })(),
+      },
+    ],
   };
 }
 

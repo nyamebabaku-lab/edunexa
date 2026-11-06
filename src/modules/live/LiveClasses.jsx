@@ -6,7 +6,7 @@ import { useNetwork } from '../../data/offline';
 import { useDB } from '../../data/store';
 import { useLookups, useCurrentUser, usePortalStudent, sortedClasses, TODAY } from '../../data/selectors';
 import { fmtDate, nowISO } from '../../lib/format';
-import { makeRoomCode, normalizeCode, isValidCode, inviteLink, sessionStatus, canHost } from '../../lib/live';
+import { makeRoomCode, normalizeCode, isValidCode, inviteLink, sessionStatus, canHost, canManageSession } from '../../lib/live';
 import { Card, PageHeader, Tabs, Button, Badge, StatCard, Input, Modal, FormModal, EmptyState, IconButton, Avatar, toast, confirmDialog, cx } from '../../components/ui';
 import { photoKey } from '../../data/photos';
 
@@ -35,10 +35,17 @@ export default function LiveClasses() {
   const list = tab === 'upcoming' ? upcoming : past;
 
   const classOpts = sortedClasses(db.classes).filter((c) => user.role !== 'teacher' || alloc.some((a) => a.classId === c.id)).map((c) => ({ value: c.id, label: c.name }));
-  const subjOpts = (v) => db.allocations.filter((a) => a.classId === v.classId && (!isTeacher || a.teacherId === user.linkedId)).map((a) => ({ value: a.subjectId, label: L.subjectName(a.subjectId) }));
+  // Teachers: their own subjects. Head Teacher / Owner: every subject of the class, and they choose the teacher who will run it.
+  const subjOpts = (v) => (isTeacher
+    ? db.allocations.filter((a) => a.classId === v.classId && a.teacherId === user.linkedId).map((a) => a.subjectId)
+    : db.classes.find((c) => c.id === v.classId)?.subjectIds || []
+  ).map((sid) => ({ value: sid, label: L.subjectName(sid) }));
+  const teacherOpts = db.staff.filter((x) => x.status !== 'Exited' && /teacher|head|tutor|lecturer/i.test(`${x.role}`)).map((x) => ({ value: x.id, label: `${x.title ? x.title + ' ' : ''}${x.firstName} ${x.lastName}` }));
+  const linkedTeacher = (v) => db.allocations.find((a) => a.classId === v.classId && a.subjectId === v.subjectId)?.teacherId;
 
   const schedule = (v) => {
-    const teacherId = isTeacher ? user.linkedId : db.allocations.find((a) => a.classId === v.classId && a.subjectId === v.subjectId)?.teacherId || user.linkedId;
+    const teacherId = isTeacher ? user.linkedId : v.teacherId || linkedTeacher(v);
+    if (!teacherId) return toast.error('Choose the teacher', 'Only the class teacher can start and end a live class');
     const s = db.add('liveSessions', { ...v, duration: Number(v.duration) || 45, teacherId, code: makeRoomCode(), status: 'Scheduled', attendance: [], chat: [], provider: v.provider || null });
     toast.success('Live class scheduled', `Class code ${s.code}`);
     setForm(null);
@@ -123,11 +130,13 @@ export default function LiveClasses() {
       )}
 
       <Modal open={!!d} onClose={() => setDetail(null)} title={d?.title} subtitle={d && `${L.className(d.classId)} · ${L.subjectName(d.subjectId)} · ${fmtDate(d.date, 'EEE d MMM')} ${d.start}`} size="lg"
-        footer={d && canHost(user, d) && (
+        footer={d && canManageSession(user, d) && (
           <>
-            <Button variant="soft-red" icon={Trash2} onClick={async () => { if (await confirmDialog('Delete this live class?', d.title)) { db.remove('liveSessions', d.id); setDetail(null); toast.success('Deleted'); } }}>Delete</Button>
+            {sessionStatus(d) !== 'Live' && <Button variant="soft-red" icon={Trash2} onClick={async () => { if (await confirmDialog('Delete this live class?', d.title)) { db.remove('liveSessions', d.id); setDetail(null); toast.success('Deleted'); } }}>Delete</Button>}
             {sessionStatus(d) !== 'Ended' && <Button variant="secondary" icon={Send} onClick={() => notify(d)}>Notify class & parents</Button>}
-            {sessionStatus(d) !== 'Ended' && <Button icon={Radio} onClick={() => navigate(`/live/room/${d.code}`)}>Start class</Button>}
+            {sessionStatus(d) !== 'Ended' && (canHost(user, d)
+              ? <Button icon={Radio} onClick={() => navigate(`/live/room/${d.code}`)}>{sessionStatus(d) === 'Live' ? 'Rejoin as host' : 'Start class'}</Button>
+              : <span className="self-center text-xs text-slate-500">Only {L.staffName(d.teacherId)} can start and end this class</span>)}
           </>
         )}>
         {d && (
@@ -170,7 +179,8 @@ export default function LiveClasses() {
         fields={[
           { name: 'title', label: 'Title', required: true, span: 2, placeholder: 'e.g. Simultaneous equations' },
           { name: 'classId', label: 'Class', type: 'select', options: classOpts, required: true },
-          { name: 'subjectId', label: 'Subject', type: 'select', options: subjOpts, required: true },
+          { name: 'subjectId', label: 'Subject', type: 'select', options: subjOpts, required: true, emptyHint: 'Give this class its subjects in Classes & Subjects' },
+          ...(isTeacher ? [] : [{ name: 'teacherId', label: 'Teacher (starts and ends the class)', type: 'select', options: teacherOpts, required: true, span: 2, placeholder: 'Choose the teacher', emptyHint: 'Add teachers in Staff & HR first' }]),
           { name: 'date', label: 'Date', type: 'date', required: true },
           { name: 'start', label: 'Start time', type: 'time', required: true },
           { name: 'duration', label: 'Duration (minutes)', type: 'number' },

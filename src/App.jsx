@@ -25,6 +25,7 @@ const Staff = lazy(() => import('./modules/staff/Staff'));
 const StaffProfile = lazy(() => import('./modules/staff/StaffProfile'));
 const Classes = lazy(() => import('./modules/classes/Classes'));
 const Timetable = lazy(() => import('./modules/timetable/Timetable'));
+const Exams = lazy(() => import('./modules/exams/Exams'));
 const Attendance = lazy(() => import('./modules/attendance/Attendance'));
 const Gradebook = lazy(() => import('./modules/academics/Gradebook'));
 const ReportCards = lazy(() => import('./modules/academics/ReportCards'));
@@ -139,6 +140,7 @@ export default function App() {
             <Route path="staff/:id" element={<Guard k="staff"><StaffProfile /></Guard>} />
             <Route path="classes" element={<Guard k="classes"><Classes /></Guard>} />
             <Route path="timetable" element={<Guard k="timetable"><Timetable /></Guard>} />
+            <Route path="exams" element={<Guard k="exams"><Exams /></Guard>} />
             <Route path="attendance" element={<Guard k="attendance"><Attendance /></Guard>} />
             <Route path="gradebook" element={<Guard k="gradebook"><Gradebook /></Guard>} />
             <Route path="report-cards" element={<Guard k="reportcards"><ReportCards /></Guard>} />

@@ -2,8 +2,7 @@ import {
   LayoutDashboard, UserPlus, GraduationCap, Users, BriefcaseBusiness, School, CalendarClock, ClipboardCheck,
   BookOpenCheck, FileBadge, MonitorPlay, Wallet, Banknote, Bus, Library, Package, BedDouble, HeartPulse,
   MessagesSquare, CalendarDays, BarChart3, Settings, Award, Receipt, CalendarCheck, UtensilsCrossed, ScanLine, DoorOpen, Video,
-  UserCheck, Building2, QrCode, FileSpreadsheet,
-} from 'lucide-react';
+  UserCheck, Building2, QrCode, FileSpreadsheet, NotebookPen } from 'lucide-react';
 import { LIVE } from '../config';
 
 export const ROLES = {
@@ -49,6 +48,7 @@ export const NAV = [
     items: [
       { key: 'classes', label: 'Classes & Subjects', path: '/classes', icon: School, roles: ['admin', 'headteacher', 'teacher'] },
       { key: 'timetable', label: 'Timetable', path: '/timetable', icon: CalendarClock, roles: ['admin', 'headteacher', 'teacher', 'student', 'parent'] },
+      { key: 'exams', label: 'Exam Timetable', path: '/exams', icon: NotebookPen, roles: ['admin', 'headteacher', 'teacher', 'student', 'parent'] },
       { key: 'attendance', label: 'Attendance', path: '/attendance', icon: ClipboardCheck, roles: ['admin', 'headteacher', 'teacher'] },
       { key: 'gradebook', label: 'Gradebook', path: '/gradebook', icon: BookOpenCheck, roles: ['admin', 'headteacher', 'teacher'] },
       { key: 'reportcards', label: 'Report Cards', path: '/report-cards', icon: FileBadge, roles: ['admin', 'headteacher', 'teacher'] },

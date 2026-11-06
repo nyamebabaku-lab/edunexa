@@ -1,6 +1,6 @@
 import { printOrShare, isPhone } from '../../lib/pdf';
 import { useEffect, useMemo, useState } from 'react';
-import { Printer, Pencil, Check, Coffee, Wand2, Eraser, Copy, Clock, Plus, Trash2, AlertTriangle, CalendarClock } from 'lucide-react';
+import { Printer, Pencil, Check, Coffee, Wand2, Eraser, Copy, Clock, Plus, Trash2, AlertTriangle, CalendarClock, Undo2, Lock, Info } from 'lucide-react';
 import { useDB } from '../../data/store';
 import { useLookups, useCurrentUser, usePortalStudent, sortedClasses, sortedPeriods } from '../../data/selectors';
 import { DAYS } from '../../data/seed';
@@ -28,8 +28,9 @@ export const classSubjects = (cls, subjects) => (cls?.subjectIds?.length ? cls.s
 /**
  * Fills a class's week: each subject gets a fair share of the lesson periods, spread over the days,
  * never twice in a row, and never at a time its teacher is already teaching another class.
+ * Each run gives a different arrangement (random order). With `keep`, lessons already placed stay and only free periods are filled.
  */
-export function generateTimetable(db, classId) {
+export function generateTimetable(db, classId, { keep = null, random = Math.random } = {}) {
   const cls = db.classes.find((c) => c.id === classId);
   const subs = classSubjects(cls, db.subjects);
   const lessons = sortedPeriods(db.periods).filter((p) => !p.isBreak);
@@ -48,24 +49,31 @@ export function generateTimetable(db, classId) {
   // Core subjects (listed first) get the spare periods.
   const left = Object.fromEntries(subs.map((s, i) => [s, base + (i < slots - base * subs.length ? 1 : 0)]));
   const perDay = Object.fromEntries(subs.map((s) => [s, Math.ceil(left[s] / DAYS.length)]));
+  // A fresh random order and daily shift each run, so "Re-create" really gives a new timetable.
+  const order = [...subs].sort(() => random() - 0.5);
+  const shift = DAYS.map(() => Math.floor(random() * subs.length));
+  const kept = (d, pid) => (keep?.[d]?.[pid] && subs.includes(keep[d][pid]) ? keep[d][pid] : null);
+  if (keep) DAYS.forEach((d) => lessons.forEach((p) => { const k = kept(d, p.id); if (k) left[k]--; }));
   const grid = {};
   let clashes = 0;
   DAYS.forEach((d, di) => {
     grid[d] = {};
     const today = {};
+    if (keep) lessons.forEach((p) => { const k = kept(d, p.id); if (k) { grid[d][p.id] = k; today[k] = (today[k] || 0) + 1; } });
     lessons.forEach((p, pi) => {
+      if (grid[d][p.id]) return; // kept lesson
       const prev = pi > 0 ? grid[d][lessons[pi - 1].id] : null;
+      const next = pi < lessons.length - 1 ? grid[d][lessons[pi + 1].id] : null;
       const rank = (s) => [
         left[s] <= 0 ? 1 : 0,
         busy.has(`${teacherOf(classId, s)}|${d}|${p.id}`) ? 1 : 0,
         (today[s] || 0) >= perDay[s] ? 1 : 0,
-        s === prev ? 1 : 0,
-        // Rotate the order each day so a subject isn't always at the same time.
-        (((subs.indexOf(s) - pi - di * 2) % subs.length) + subs.length) % subs.length,
+        s === prev || s === next ? 1 : 0,
+        (((order.indexOf(s) - pi - shift[di]) % subs.length) + subs.length) % subs.length,
         -left[s],
       ];
-      const pick = [...subs].sort((a, b) => {
-        const x = rank(a), y = rank(b);
+      const pick = [...order].sort((x0, y0) => {
+        const x = rank(x0), y = rank(y0);
         for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] - y[i];
         return 0;
       })[0];
@@ -77,6 +85,20 @@ export function generateTimetable(db, classId) {
     });
   });
   return { grid, clashes };
+}
+
+/** Problems in the bell times: periods that overlap, and unexplained gaps. */
+export function bellProblems(periods) {
+  const list = sortedPeriods(periods).filter((p) => p.start && p.end);
+  const out = [];
+  list.forEach((p, i) => {
+    if (p.end <= p.start) out.push({ type: 'error', text: `${p.label} ends before it starts` });
+    const n = list[i + 1];
+    if (!n) return;
+    if (n.start < p.end) out.push({ type: 'error', text: `${n.label} starts at ${n.start}, before ${p.label} ends (${p.end})` });
+    else if (n.start > p.end) out.push({ type: 'warn', text: `Nothing is set between ${p.end} and ${n.start} (after ${p.label})` });
+  });
+  return out;
 }
 
 export default function Timetable() {
@@ -138,26 +160,41 @@ export default function Timetable() {
 
   const filled = DAYS.reduce((a, d) => a + Object.values(grid[d] || {}).filter(Boolean).length, 0);
 
-  const autoFill = async (all = false) => {
+  const [ask, setAsk] = useState(null); // { all } while choosing how to create
+  const [undo, setUndo] = useState(null); // timetable before the last automatic change
+  const autoFill = (all = false) => {
     if (!periods.some((p) => !p.isBreak)) return toast.error('No lesson periods', 'Set your bell times first');
+    setAsk({ all });
+  };
+  const runAuto = (keepPlaced) => {
+    const all = ask.all;
+    setAsk(null);
     const targets = all ? classes : [cls];
-    if (!(await confirmDialog(all ? `Create timetables for all ${classes.length} classes?` : `Create ${cls.name}'s timetable?`, `Each subject gets a fair share of the week, spread over the days and kept clear of teacher clashes where possible. ${all ? 'Existing timetables are replaced.' : filled ? 'The current timetable is replaced.' : ''} You can change any lesson afterwards.`, { danger: false, confirmLabel: 'Create timetable' }))) return;
     let made = 0;
     let clashes = 0;
     const state = useDB.getState();
-    const next = { ...(state.timetable || {}) };
+    const before = state.timetable || {};
+    const next = { ...before };
     targets.forEach((c) => {
-      const r = generateTimetable({ ...state, timetable: next }, c.id);
+      const r = generateTimetable({ ...state, timetable: next }, c.id, { keep: keepPlaced ? before[c.id] : null });
       if (!r) return;
       next[c.id] = r.grid;
       made++;
       clashes += r.clashes;
     });
-    db.setKey('timetable', next);
     if (!made) return toast.error('Nothing to timetable', 'Give the class some subjects first (Classes & Subjects → Edit class)');
-    toast.success(all ? `${made} timetables created` : 'Timetable created', clashes ? `${clashes} lesson(s) could not avoid a teacher clash — check the highlighted cells` : 'No teacher clashes');
+    setUndo(before);
+    db.setKey('timetable', next);
+    toast.success(all ? `${made} timetables created` : keepPlaced ? 'Free periods filled' : 'New timetable made', clashes ? `${clashes} lesson(s) could not avoid a teacher clash — check the highlighted cells` : noTeachers ? 'Tap Undo to go back' : 'No teacher clashes · tap Undo to go back');
     setEditing(true);
   };
+  const doUndo = () => {
+    db.setKey('timetable', undo);
+    setUndo(null);
+    toast.success('Timetable restored', 'Back to how it was before');
+  };
+  const noTeachers = !db.allocations.length;
+  const bell = bellProblems(db.periods);
 
   const clear = async () => {
     if (!(await confirmDialog(`Clear ${cls.name}'s timetable?`, 'Every lesson for this class is removed.', { confirmLabel: 'Clear' }))) return;
@@ -209,9 +246,16 @@ export default function Timetable() {
           <Button size="sm" icon={Wand2} onClick={() => autoFill(false)}>{filled ? 'Re-create' : 'Create'} {cls.name} automatically</Button>
           {classes.length > 1 && <Button size="sm" variant="secondary" icon={Wand2} onClick={() => autoFill(true)}>Create all classes</Button>}
           {classes.length > 1 && <Button size="sm" variant="secondary" icon={Copy} onClick={() => setCopyFrom(classes.find((c) => c.id !== effectiveClass && db.timetable?.[c.id])?.id || classes.find((c) => c.id !== effectiveClass)?.id)}>Copy from…</Button>}
+          {undo && <Button size="sm" variant="secondary" icon={Undo2} onClick={doUndo}>Undo</Button>}
           {filled > 0 && <Button size="sm" variant="ghost" icon={Eraser} className="hover:!text-accent-600" onClick={clear}>Clear</Button>}
           <p className="ml-auto text-xs text-slate-500">{editing ? 'Tap a lesson to change it. Red = the teacher is already in another class then.' : 'Tap Edit to change lessons by hand.'}</p>
         </Card>
+      )}
+      {canEdit && mode === 'class' && noTeachers && (
+        <p className="no-print mb-4 flex items-center gap-2 rounded-xl bg-sky-50 p-3 text-sm text-sky-800 dark:bg-sky-500/10 dark:text-sky-200"><Info className="h-4 w-4 shrink-0" /> No teachers are linked to subjects yet, so clashes between classes can't be checked. Link them in Classes & Subjects (open a class, choose each subject's teacher).</p>
+      )}
+      {canEdit && bell.some((x) => x.type === 'error') && (
+        <p className="no-print mb-4 flex items-start gap-2 rounded-xl bg-accent-50 p-3 text-sm text-accent-800 dark:bg-accent-500/10 dark:text-accent-200"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span>Bell times need fixing: {bell.filter((x) => x.type === 'error').map((x) => x.text).join(' · ')}. <button className="font-semibold underline" onClick={() => setBells(true)}>Open bell times</button></span></p>
       )}
       {mode === 'class' && !subs.length && (
         <p className="no-print mb-4 flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200"><AlertTriangle className="h-4 w-4" /> {cls.name} has no subjects yet. Add them in Classes & Subjects → Edit class.</p>
@@ -307,6 +351,19 @@ export default function Timetable() {
       </Modal>
 
       <BellTimes open={bells} onClose={() => setBells(false)} />
+      <Modal open={!!ask} onClose={() => setAsk(null)} title={ask?.all ? `Create timetables for all ${classes.length} classes` : `Create ${cls?.name}'s timetable`} size="sm">
+        <div className="space-y-3">
+          <button onClick={() => runAuto(false)} className="w-full rounded-2xl border border-slate-200 p-4 text-left hover:border-brand-400 hover:bg-brand-50/50 dark:border-white/10 dark:hover:bg-white/5">
+            <p className="flex items-center gap-2 font-bold text-slate-900 dark:text-white"><Wand2 className="h-4 w-4 text-brand-600" /> New arrangement</p>
+            <p className="mt-1 text-sm text-slate-500">Replaces {ask?.all ? 'every class timetable' : 'the whole timetable'} with a fresh one. Each press gives a different arrangement.</p>
+          </button>
+          <button onClick={() => runAuto(true)} className="w-full rounded-2xl border border-slate-200 p-4 text-left hover:border-brand-400 hover:bg-brand-50/50 dark:border-white/10 dark:hover:bg-white/5">
+            <p className="flex items-center gap-2 font-bold text-slate-900 dark:text-white"><Lock className="h-4 w-4 text-brand-600" /> Keep my lessons, fill the free periods</p>
+            <p className="mt-1 text-sm text-slate-500">Lessons already placed stay where they are; only empty periods are filled.</p>
+          </button>
+          <p className="text-xs text-slate-500">Each subject gets a fair share of the week, never twice in a row, and kept clear of teacher clashes where possible. You can Undo straight after.</p>
+        </div>
+      </Modal>
     </>
   );
 }
@@ -331,9 +388,14 @@ function BellTimes({ open, onClose }) {
     setRows([...list, { id: uid('per'), label: isBreak ? 'Break' : `P${n}`, start, end, isBreak, _new: true }]);
   };
   const close = () => { setRows(null); onClose(); };
-  const save = () => {
+  const save = async () => {
     const bad = list.find((r) => !r.label?.trim() || !r.start || !r.end || r.end <= r.start);
     if (bad) return toast.error('Check the times', `${bad.label || 'A period'}: each one needs a name and must end after it starts`);
+    const probs = bellProblems(list);
+    const overlap = probs.find((x) => x.type === 'error');
+    if (overlap) return toast.error('Times overlap', overlap.text);
+    const gaps = probs.filter((x) => x.type === 'warn');
+    if (gaps.length && !(await confirmDialog('Save with gaps?', `${gaps.map((g) => g.text).join(' · ')}. Save anyway?`, { danger: false, confirmLabel: 'Save anyway' }))) return;
     const keep = new Set(list.map((r) => r.id));
     const removed = periods.filter((p) => !keep.has(p.id)).map((p) => p.id);
     const clean = list.map((r) => ({ id: r.id, label: r.label.trim(), start: r.start, end: r.end, isBreak: !!r.isBreak }));
@@ -371,6 +433,9 @@ function BellTimes({ open, onClose }) {
           <Button size="sm" variant="secondary" icon={Coffee} onClick={() => addRow(true)}>Add break</Button>
           {!list.length && <Button size="sm" variant="ghost" onClick={() => setRows(STARTER_PERIODS.map((p) => ({ ...p })))}>Use a standard day (8:00–2:35)</Button>}
         </div>
+        {bellProblems(list).map((x, i) => (
+          <p key={i} className={cx('flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs', x.type === 'error' ? 'bg-accent-50 text-accent-700 dark:bg-accent-500/10 dark:text-accent-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300')}><AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {x.text}</p>
+        ))}
         <p className="pt-1 text-xs text-slate-500">Periods are shown in time order. Removing a period also removes its lessons from every class.</p>
       </div>
     </Modal>
