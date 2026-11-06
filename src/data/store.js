@@ -36,7 +36,7 @@ const PREFIX = {
   purchaseOrders: 'po', routes: 'rte', buses: 'bus', trips: 'trp', maintenance: 'mnt', dorms: 'dor', exeats: 'exe',
   notices: 'not', events: 'evt', messages: 'msg', smsLog: 'sms', healthVisits: 'hlt', incidents: 'dis', materials: 'mat',
   assignments: 'asg', submissions: 'sbm', quizzes: 'qz', quizAttempts: 'qat', leaves: 'lev', payrollRuns: 'prl', allocations: 'alc',
-  canteenItems: 'cfi', canteenStock: 'cin', canteenStockMoves: 'csm', canteenSales: 'csl', users: 'usr', clockings: 'clk', liveSessions: 'lvs',
+  canteenItems: 'cfi', canteenStock: 'cin', canteenStockMoves: 'csm', canteenSales: 'csl', users: 'usr', clockings: 'clk', liveSessions: 'lvs', houses: 'hse',
 };
 
 // localStorage that reports a full device instead of failing silently.

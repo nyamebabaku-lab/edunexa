@@ -824,6 +824,12 @@ export function buildSeed() {
   return {
     meta: { version: 1, seededAt: TODAY },
     settings,
+    houses: [
+      { id: 'hse_1', name: 'Aggrey', colour: '#dc2626', masterId: null },
+      { id: 'hse_2', name: 'Nkrumah', colour: '#16a34a', masterId: null },
+      { id: 'hse_3', name: 'Guggisberg', colour: '#2563eb', masterId: null },
+      { id: 'hse_4', name: 'Yaa Asantewaa', colour: '#ca8a04', masterId: null },
+    ],
     terms,
     periods,
     users,

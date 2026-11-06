@@ -1,3 +1,4 @@
+import { LIVE } from '../config';
 import { parentPhones } from './sms';
 // Gate attendance: rotating gate QR codes, personal ID badges and clock-in/out rules.
 import { format } from 'date-fns';
@@ -75,7 +76,8 @@ export function clock(personType, personId, method) {
     const record = { id, date: TODAY, personType, personId, in: time, out: null, inMethod: method, outMethod: null, late, gate: s.gate.name, inAt: nowISO() };
     db.add('clockings', record);
     if (personType === 'Student') {
-      if (s.gate.autoRegister) markRegister(person, late ? 'L' : 'P');
+      // Live apps: the server ticks the register from the clock-in (any device, even the kiosk); the demo does it here.
+      if (s.gate.autoRegister && !LIVE) markRegister(person, late ? 'L' : 'P');
       if (s.gate.notifyParents) {
         const to = parentPhones(db, [person]);
         if (to.length) db.add('smsLog', { date: nowISO(), audience: `Parent of ${name}`, message: `${s.schoolName}: ${person.firstName} arrived at school at ${time}${late ? ' (late)' : ''}.`, to, recipients: to.length, status: 'Delivered' });

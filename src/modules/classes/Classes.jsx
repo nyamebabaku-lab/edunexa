@@ -7,6 +7,7 @@ import { fullName } from '../../lib/format';
 import { SECTIONS } from '../../data/seed';
 import { Card, Badge, Avatar, Button, PageHeader, Tabs, Progress, Modal, Select, FormModal, IconButton, toast, confirmDialog, cx } from '../../components/ui';
 import TermsEditor from './Terms';
+import Houses from './Houses';
 import { removeLevel } from '../accounts/SchoolPanel';
 import CrudPage from '../../components/CrudPage';
 import { photoKey } from '../../data/photos';
@@ -107,13 +108,15 @@ export default function Classes() {
         subtitle="Class structure, programmes, subjects and teacher allocation"
         actions={
           <>
-            <Tabs value={tab} onChange={setTab} tabs={[{ value: 'classes', label: 'Classes', count: classes.length }, { value: 'subjects', label: 'Subjects', count: db.subjects.length }, { value: 'terms', label: 'Terms', count: db.terms.length }]} />
+            <Tabs value={tab} onChange={setTab} tabs={[{ value: 'classes', label: 'Classes', count: classes.length }, { value: 'subjects', label: 'Subjects', count: db.subjects.length }, { value: 'terms', label: 'Terms', count: db.terms.length }, { value: 'houses', label: 'Houses', count: (db.houses || []).length }]} />
             {isAdmin && tab === 'classes' && <Button icon={Plus} onClick={() => setForm({ section: SECTIONS.find((x) => db.classes.some((c) => c.section === x)) || 'Primary', capacity: 35 })}>New class</Button>}
           </>
         }
       />
       {tab === 'terms' ? (
         <TermsEditor />
+      ) : tab === 'houses' ? (
+        <Houses />
       ) : tab === 'classes' ? (
         <div className="space-y-8">
           {!classes.length && (

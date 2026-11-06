@@ -360,7 +360,7 @@ export default function StudentProfile() {
         open={edit}
         onClose={() => setEdit(false)}
         title="Edit student"
-        fields={studentFields(db.classes, db.parents, db.routes, db.dorms)}
+        fields={studentFields(db.classes, db.parents, db.routes, db.dorms, db.houses || [])}
         initial={student}
         onSubmit={({ _photo, ...v }) => {
           db.update('students', student.id, { ...v, parentId: resolveParent(v.parentId) });

@@ -17,7 +17,7 @@ export const COLLECTIONS = [
   'maintenance', 'books', 'loans', 'storeItems', 'stockMoves', 'suppliers', 'purchaseOrders', 'dorms', 'exeats', 'notices',
   'events', 'messages', 'smsLog', 'healthVisits', 'incidents', 'materials', 'assignments', 'submissions', 'quizzes',
   'quizAttempts', 'canteenItems', 'canteenStock', 'canteenStockMoves', 'canteenSales', 'clockings', 'liveSessions',
-  'timetable', 'reportRemarks', 'canteenMenu', 'boardingFee', 'expenseCategories', 'photos',
+  'timetable', 'reportRemarks', 'canteenMenu', 'boardingFee', 'expenseCategories', 'photos', 'houses',
 ];
 export const KV_COLLECTIONS = ['timetable', 'reportRemarks', 'canteenMenu', 'boardingFee', 'expenseCategories'];
 
@@ -25,7 +25,7 @@ export const KV_COLLECTIONS = ['timetable', 'reportRemarks', 'canteenMenu', 'boa
 export const MEMBER_ROLES = ['headteacher', 'teacher', 'accountant', 'librarian', 'storekeeper', 'transport', 'canteen', 'hostel', 'staff', 'kiosk', 'parent', 'student'];
 export const ALL_ROLES = ['admin', ...MEMBER_ROLES];
 
-const SCHOOL_BASICS = ['terms', 'periods', 'subjects', 'classes', 'notices', 'events', 'timetable'];
+const SCHOOL_BASICS = ['terms', 'periods', 'subjects', 'classes', 'notices', 'events', 'timetable', 'houses'];
 const ACADEMIC = ['allocations', 'attendance', 'scores', 'reportRemarks', 'materials', 'assignments', 'submissions', 'quizzes', 'quizAttempts', 'liveSessions'];
 const FINANCE = ['feeStructures', 'invoices', 'payments', 'expenses', 'expenseCategories', 'boardingFee'];
 const LIBRARY = ['books', 'loans'];
@@ -53,7 +53,7 @@ export const ACCESS = {
   admin: Object.fromEntries(COLLECTIONS.map((c) => [c, c === 'messages' ? ['mine', 'mine'] : ['all', 'all']])),
 
   headteacher: staffBase((m) => {
-    grant(m, ['students', 'parents', 'applications', 'allocations', 'classes', 'subjects', 'terms', 'periods', 'timetable', 'notices', 'events'], 'all', 'all');
+    grant(m, ['students', 'parents', 'applications', 'allocations', 'classes', 'subjects', 'houses', 'terms', 'periods', 'timetable', 'notices', 'events'], 'all', 'all');
     grant(m, ACADEMIC, 'all', 'all');
     grant(m, WELFARE, 'all', 'all');
     grant(m, ['photos', 'leaves', 'clockings', 'smsLog', 'exeats'], 'all', 'all');
@@ -137,7 +137,7 @@ export const canWrite = (role, col) => role === 'superadmin' || writeScope(role,
 /** Friendly names for "view only" messages. */
 export const COLLECTION_LABEL = {
   invoices: 'fees', payments: 'payments', expenses: 'expenses', feeStructures: 'fee structures', payrollRuns: 'payroll',
-  students: 'student records', staff: 'staff records', parents: 'parent records', classes: 'classes', subjects: 'subjects',
+  houses: 'houses', students: 'student records', staff: 'staff records', parents: 'parent records', classes: 'classes', subjects: 'subjects',
   books: 'library', loans: 'library loans', storeItems: 'store', canteenItems: 'canteen', canteenSales: 'canteen sales',
   routes: 'transport', buses: 'transport', dorms: 'hostel', exeats: 'exeats', scores: 'scores', attendance: 'attendance',
 };

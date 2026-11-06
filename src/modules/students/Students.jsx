@@ -48,7 +48,7 @@ export async function confirmDeleteStudents(list) {
   return true;
 }
 
-export function studentFields(classes, parents, routes, dorms) {
+export function studentFields(classes, parents, routes, dorms, houses = []) {
   return [
     {
       name: '_photo',
@@ -65,7 +65,7 @@ export function studentFields(classes, parents, routes, dorms) {
     { name: 'classId', label: 'Class', type: 'select', options: sortedClasses(classes).map((c) => ({ value: c.id, label: c.name })), required: true, emptyHint: 'No classes yet — add them in Classes & Subjects first' },
     { name: '_family', label: 'Parent / guardian', type: 'custom', span: 2, render: (v, _set, patch) => <ParentPicker value={v.parentId} parents={parents} note={v} onChange={(id) => patch({ parentId: id })} onNote={patch} /> },
     { name: 'boarding', label: 'Day / Boarding', type: 'select', options: ['Day', 'Boarder'] },
-    { name: 'house', label: 'House', type: 'select', options: ['Aggrey', 'Nkrumah', 'Guggisberg', 'Yaa Asantewaa'] },
+    { name: 'house', label: 'House', type: 'select', strict: true, options: (v) => [...new Set([...houses.map((h) => h.name), ...(v.house ? [v.house] : [])])], placeholder: houses.length ? 'No house' : 'No houses yet', emptyHint: 'Add houses in Classes & Subjects → Houses' },
     { name: 'dormId', label: 'Dormitory', type: 'select', options: dorms.map((d) => ({ value: d.id, label: d.name })), hidden: (v) => v.boarding !== 'Boarder', emptyHint: 'Add dormitories in Hostel & Boarding' },
     { name: 'busRouteId', label: 'Bus route', type: 'select', options: routes.map((r) => ({ value: r.id, label: r.name })), placeholder: 'No bus', hidden: (v) => v.boarding === 'Boarder' },
     { name: 'admissionDate', label: 'Admission date', type: 'date' },
@@ -202,7 +202,7 @@ export default function Students() {
       />
       <FormModal open={!!form} onClose={() => setForm(null)} title="Add student" initial={form} onSubmit={save}
         fields={[
-          ...studentFields(db.classes, db.parents, db.routes, db.dorms),
+          ...studentFields(db.classes, db.parents, db.routes, db.dorms, db.houses || []),
           ...(admFee > 0 ? [{ name: '_admission', label: `New admission — bill the admission fee (${money(admFee)})`, type: 'checkbox', span: 2 }] : []),
         ]} />
     </>

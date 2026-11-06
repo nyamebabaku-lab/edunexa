@@ -255,6 +255,19 @@ export function planImport(XLSX, wb, db) {
     if (!k) return null;
     return staff.find((s) => key(s.staffNo) === k) || staff.find((s) => key([s.firstName, s.lastName].join(' ')) === k) || staff.find((s) => key([s.title, s.firstName, s.lastName].join(' ')) === k) || staff.find((s) => key(s.email) === k);
   };
+  // Houses named on student rows join the school's house list.
+  const houses = [...(db.houses || [])];
+  const ensureHouse = (name) => {
+    const n = str(name);
+    if (!n) return '';
+    let h = houses.find((x) => key(x.name) === key(n));
+    if (!h) {
+      h = { id: `hse_${houses.length + 1}_${key(n).replace(/[^a-z0-9]/g, '').slice(0, 12)}`, name: n, colour: ['#dc2626', '#16a34a', '#2563eb', '#ca8a04', '#7c3aed', '#ea580c'][houses.length % 6], masterId: null };
+      houses.push(h);
+      put('houses', h, true, null);
+    }
+    return h.name;
+  };
   const ensureTerm = (v) => {
     const t = parseTerm(v);
     if (!t) return null;
@@ -394,7 +407,7 @@ export function planImport(XLSX, wb, db) {
     const rec = {
       ...(ex || { id: uid('stu'), dormId: null, busRouteId: null }),
       admissionNo: adm, firstName: first, otherNames: str(r.othernames), lastName: last, gender: gender(r.gender) || ex?.gender || '',
-      dob: dob || ex?.dob || '', classId: cls.id, parentId, house: str(r.house) || ex?.house || '', boarding,
+      dob: dob || ex?.dob || '', classId: cls.id, parentId, house: ensureHouse(r.house) || ex?.house || '', boarding,
       status: str(r.status) || ex?.status || 'Active', admissionDate: admDate || ex?.admissionDate || '', address: str(r.homeaddress) || ex?.address || '',
       bloodGroup: str(r.bloodgroup) || ex?.bloodGroup || '', allergies: str(r.allergiesmedicalnotes) || ex?.allergies || '', medicalNotes: ex?.medicalNotes || '',
       nationality: str(r.nationality) || ex?.nationality || 'Ghanaian', religion: str(r.religion) || ex?.religion || '', previousSchool: str(r.previousschool) || ex?.previousSchool || '',
@@ -469,4 +482,4 @@ export function planImport(XLSX, wb, db) {
 }
 
 /** Order matters: parents and classes before students, students before invoices and scores. */
-export const WRITE_ORDER = ['terms', 'subjects', 'classes', 'staff', 'allocations', 'parents', 'students', 'invoices', 'scores', 'books', 'storeItems'];
+export const WRITE_ORDER = ['terms', 'subjects', 'classes', 'houses', 'staff', 'allocations', 'parents', 'students', 'invoices', 'scores', 'books', 'storeItems'];

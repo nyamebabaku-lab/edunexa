@@ -72,7 +72,7 @@ export default function Hostel() {
       {tab === 'manage' && (
         <CrudPage collection="dorms" noun="hall" defaults={{ gender: 'Male', capacity: 24 }}
           fields={[
-            { name: 'name', label: 'Hall name', required: true }, { name: 'house', label: 'House' },
+            { name: 'name', label: 'Hall name', required: true }, { name: 'house', label: 'House', type: 'select', strict: true, options: (v) => [...new Set([...(db.houses || []).map((h) => h.name), ...(v.house ? [v.house] : [])])], placeholder: 'No house', emptyHint: 'Add houses in Classes & Subjects → Houses' },
             { name: 'gender', label: 'Gender', type: 'select', options: ['Male', 'Female'] }, { name: 'capacity', label: 'Beds', type: 'number' },
             { name: 'masterId', label: 'House master / mistress', type: 'select', options: db.staff.filter((s) => ['Teacher', 'Matron'].includes(s.role)).map((s) => ({ value: s.id, label: `${s.title} ${s.firstName} ${s.lastName}` })), span: 2 },
           ]}
