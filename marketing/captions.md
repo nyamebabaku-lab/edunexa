@@ -19,3 +19,6 @@ Hashtags to mix in: #EduNexa #SchoolManagement #EdTechGhana #GhanaSchools #Ghana
 | 11 | 11-paper-vs-app.png | Still running your school on exercise books and receipt pads? Switch to one app for fees, attendance, report cards and parent updates. |
 | 12 | 12-pocket.png | Your school, in your pocket. EduNexa works on iPhone, Android or any browser, with nothing to install. |
 | 13 | 13-scan-demo.png | See it for yourself: scan the code and open the admin, teacher, parent or student portal right in your browser. |
+| 14 | 14-bus-live.png | NEW: watch the school bus live. Parents follow the bus on the map to their child's stop, get "5 minutes away", "got on the bus" and "dropped off" alerts, and can call the driver with one tap. |
+| 15 | 15-gate-kiosk.png | NEW: scan in at the gate and the class register is done. Every clock-in at the gate kiosk marks the child Present or Late in the class register, and tells the parent. |
+| 16 | 16-whats-new.png | EduNexa just got even better: live bus tracking, gate kiosk registers, exam timetables, one-tap timetables, admission fees and extra charges, marks by subject teacher, parents linking their own children, and teacher-led live classes. |

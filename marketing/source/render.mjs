@@ -7,7 +7,7 @@ const out = process.argv[2] || dir + 'out/';
 fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ executablePath: EXE, args: ['--headless=old'] });
 const page = await browser.newPage({ viewport: { width: 1080, height: 1080 }, deviceScaleFactor: Number(process.env.DPR || 2) });
-await page.goto('file://' + dir + 'flyers.html');
+await page.goto('file://' + dir + (process.env.HTML || 'flyers.html'));
 await page.evaluate(async () => { await document.fonts.ready; await Promise.all([...document.images].map((i) => i.decode().catch(() => {}))); });
 await page.waitForTimeout(800);
 for (const el of await page.$$('section.ad')) {
