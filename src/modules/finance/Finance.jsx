@@ -1,15 +1,15 @@
 import { parentPhones } from '../../lib/sms';
 import { LIVE } from '../../config';
 import { useMemo, useState } from 'react';
-import { Plus, Printer, Send, FileStack, Wallet, AlertCircle, FileText, Receipt, Download, Trash2, Save } from 'lucide-react';
+import { Plus, Printer, Send, FileStack, Wallet, AlertCircle, FileText, Receipt, Download, Trash2, Save, UserPlus } from 'lucide-react';
 import { useDB } from '../../data/store';
 import { useLookups, useBalances, invoiceNet, sortedClasses, TODAY } from '../../data/selectors';
 import { money, moneyShort, fmtDate, fullName, sum, pct, uid, nowISO, downloadCSV } from '../../lib/format';
 import { SECTIONS } from '../../data/seed';
-import { Card, CardHeader, PageHeader, Tabs, Button, Badge, Avatar, DataTable, StatCard, Select, Input, Progress, IconButton, toast, confirmDialog } from '../../components/ui';
+import { Card, CardHeader, PageHeader, Tabs, Button, Badge, Avatar, DataTable, StatCard, Select, Input, Progress, IconButton, Modal, toast, confirmDialog } from '../../components/ui';
 import CrudPage from '../../components/CrudPage';
 import PrintView from '../../components/PrintView';
-import { RecordPaymentModal, ReceiptDoc, InvoiceDoc, invoiceStatus } from './shared';
+import { RecordPaymentModal, ReceiptDoc, InvoiceDoc, invoiceStatus, isTermBill, invoiceTitle, admissionItems, ADMISSION_ID, ChargeModal } from './shared';
 import { photoKey } from '../../data/photos';
 
 function Overview() {
@@ -70,10 +70,11 @@ function Invoices() {
 
   const generate = async () => {
     if (!termId) return toast.error('No term chosen', 'Add your terms in Classes & Subjects → Terms, then choose one here');
-    const billed = new Set(db.invoices.filter((i) => i.termId === termId).map((i) => i.studentId));
+    // Admission fees, extra charges and shop purchases don't count: those students still get their term bill.
+    const billed = new Set(db.invoices.filter((i) => i.termId === termId && isTermBill(i)).map((i) => i.studentId));
     const todo = db.students.filter((s) => s.status === 'Active' && !billed.has(s.id));
     if (!todo.length) return toast.info('All active students already billed for this term');
-    if (!(await confirmDialog('Generate term bills?', `Create ${todo.length} invoice(s) for ${db.terms.find((t) => t.id === termId)?.name} using current fee structures.`, { danger: false, confirmLabel: 'Generate' }))) return;
+    if (!(await confirmDialog('Generate term bills?', `Create ${todo.length} term bill(s) for ${db.terms.find((t) => t.id === termId)?.name}: each level's general fees for every active student, plus transport for bus riders and boarding for boarders.`, { danger: false, confirmLabel: 'Generate' }))) return;
     let n = db.invoices.length;
     const recs = todo.map((s) => {
       const c = L.cls(s.classId);
@@ -83,7 +84,7 @@ function Invoices() {
       if (r && Number(r.fee) > 0) items.push({ name: 'Transport', amount: Number(r.fee) });
       if (!items.length) return null;
       n++;
-      return { id: uid('inv'), invoiceNo: `INV-${termId.slice(2, 4)}${termId.slice(-1)}-${String(n).padStart(4, '0')}`, studentId: s.id, termId, date: TODAY, dueDate: TODAY, items, discount: 0, discountReason: '', total: sum(items, (i) => Number(i.amount)) };
+      return { id: uid('inv'), invoiceNo: `INV-${termId.slice(2, 4)}${termId.slice(-1)}-${String(n).padStart(4, '0')}`, studentId: s.id, termId, date: TODAY, dueDate: TODAY, items, discount: 0, discountReason: '', total: sum(items, (i) => Number(i.amount)), kind: 'term' };
     }).filter(Boolean);
     if (!recs.length) return toast.error('No fees set', 'Enter the amounts in Fees & Finance → Fee structures first');
     db.addMany('invoices', recs);
@@ -100,12 +101,13 @@ function Invoices() {
           <>
             <Select className="!w-auto" value={termId} onChange={(e) => setTermId(e.target.value)} options={db.terms.map((t) => ({ value: t.id, label: t.name }))} />
             <Select className="!w-auto" value={status} onChange={(e) => setStatus(e.target.value)} options={['Paid', 'Part paid', 'Unpaid']} placeholder="Any status" />
-            <Button icon={FileStack} onClick={generate}>Generate bills</Button>
+            <Button icon={FileStack} onClick={generate}>Generate term bills</Button>
           </>
         }
         columns={[
           { key: 'invoiceNo', label: 'Invoice', render: (i) => <span className="font-mono text-xs font-semibold">{i.invoiceNo}</span> },
           { key: 'student', label: 'Student', sort: (i) => L.studentName(i.studentId), render: (i) => <span className="font-semibold">{L.studentName(i.studentId)}</span> },
+          { key: 'for', label: 'For', hideOnMobile: true, sort: (i) => invoiceTitle(i, db.terms), render: (i) => <span className="text-slate-600 dark:text-slate-300">{invoiceTitle(i, db.terms)}</span> },
           { key: 'class', label: 'Class', hideOnMobile: true, sort: (i) => L.studentClass(i.studentId)?.order, render: (i) => L.studentClass(i.studentId)?.name },
           { key: 'net', label: 'Amount', sort: invoiceNet, render: (i) => money(invoiceNet(i)) },
           { key: 'paid', label: 'Paid', hideOnMobile: true, sort: (i) => i.st.paid, render: (i) => <span className="text-emerald-600">{money(i.st.paid)}</span> },
@@ -206,15 +208,20 @@ function Arrears() {
 function FeeStructures() {
   const db = useDB();
   // Every level the school has gets a card, even if no fees were set for it yet.
+  const [adm, setAdm] = useState(() => {
+    const a = (db.feeStructures || []).find((f) => f.id === ADMISSION_ID);
+    return a ? JSON.parse(JSON.stringify(a.items)) : admissionItems(db).length ? admissionItems(db) : [{ name: 'Admission Fee', amount: 0 }];
+  });
   const [draft, setDraft] = useState(() => {
-    const list = JSON.parse(JSON.stringify(db.feeStructures || []));
+    const list = JSON.parse(JSON.stringify((db.feeStructures || []).filter((f) => f.id !== ADMISSION_ID)));
     const levels = SECTIONS.filter((sec) => db.classes.some((c) => c.section === sec) && !list.some((f) => f.section === sec));
     return [...list, ...levels.map((sec) => ({ id: `fee_${sec.slice(0, 2).toLowerCase()}`, section: sec, items: [{ name: 'Tuition', amount: 0 }] }))].sort((a, b) => SECTIONS.indexOf(a.section) - SECTIONS.indexOf(b.section));
   });
   const [boarding, setBoarding] = useState(db.boardingFee);
   const setItem = (fi, ii, patch) => setDraft(draft.map((f, i) => (i === fi ? { ...f, items: f.items.map((it, j) => (j === ii ? { ...it, ...patch } : it)) } : f)));
   const save = () => {
-    db.setKey('feeStructures', draft.map((f) => ({ ...f, items: f.items.filter((i) => i.name).map((i) => ({ ...i, amount: Number(i.amount) || 0 })) })));
+    const clean = (items) => items.filter((i) => i.name).map((i) => ({ ...i, amount: Number(i.amount) || 0 }));
+    db.setKey('feeStructures', [...draft.map((f) => ({ ...f, items: clean(f.items) })), { id: ADMISSION_ID, section: 'New admissions', items: clean(adm) }]);
     db.setKey('boardingFee', Number(boarding) || 0);
     toast.success('Fee structures saved', 'New bills will use these amounts');
   };
@@ -224,7 +231,24 @@ function FeeStructures() {
         <label className="flex items-center gap-2 text-sm font-semibold">Boarding fee / term <Input type="number" className="!w-32" value={boarding} onChange={(e) => setBoarding(e.target.value)} /></label>
         <Button icon={Save} onClick={save}>Save changes</Button>
       </div>
+      <p className="mb-4 rounded-xl bg-brand-50 p-3 text-sm text-brand-900 dark:bg-brand-500/10 dark:text-brand-100">
+        <b>General fees</b> below go to every active student of that level when you generate term bills. <b>Transport</b> (bus route fee) and <b>boarding</b> are added only for bus riders and boarders. The <b>admission fee</b> is billed once to new students. Anything else — excursions, exam fees, uniforms — goes in <b>Extra charges</b> for just the students it applies to.
+      </p>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-3">
+        <Card className="ring-2 ring-accent-200 dark:ring-accent-500/30">
+          <CardHeader title="New admissions" subtitle={`Billed once to each new student · total ${money(sum(adm, (i) => Number(i.amount) || 0))}`} icon={UserPlus} />
+          <div className="space-y-2 p-5">
+            {adm.map((it, ii) => (
+              <div key={ii} className="flex items-center gap-2">
+                <Input value={it.name} onChange={(e) => setAdm(adm.map((x, j) => (j === ii ? { ...x, name: e.target.value } : x)))} />
+                <Input type="number" className="!w-28" value={it.amount} onChange={(e) => setAdm(adm.map((x, j) => (j === ii ? { ...x, amount: e.target.value } : x)))} />
+                <IconButton icon={Trash2} label="Remove" onClick={() => setAdm(adm.filter((_, j) => j !== ii))} />
+              </div>
+            ))}
+            <Button size="sm" variant="soft" icon={Plus} onClick={() => setAdm([...adm, { name: '', amount: 0 }])}>Add item</Button>
+            <p className="pt-1 text-xs text-slate-500">e.g. Admission fee, forms, ID card. Set 0 if your school charges none. Students enrolled through Admissions, or added in Students, are billed this automatically.</p>
+          </div>
+        </Card>
         {draft.map((f, fi) => (
           <Card key={f.id}>
             <CardHeader title={f.section} subtitle={`Per ${f.section === 'Diploma' ? 'semester' : 'term'} · total ${money(sum(f.items, (i) => Number(i.amount) || 0))}`} icon={FileText} />
@@ -241,6 +265,65 @@ function FeeStructures() {
           </Card>
         ))}
       </div>
+    </>
+  );
+}
+
+function ExtraCharges() {
+  const db = useDB();
+  const L = useLookups();
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState(null);
+  const extra = db.invoices.filter((i) => i.kind === 'extra' || i.kind === 'admission');
+  const groups = Object.values(
+    extra.reduce((m, i) => {
+      const k = i.chargeId || i.id;
+      (m[k] ||= { id: k, kind: i.kind, label: invoiceTitle(i, db.terms), date: i.date, termId: i.termId, amount: invoiceNet(i), list: [] }).list.push(i);
+      return m;
+    }, {}),
+  ).map((g) => ({ ...g, students: g.list.length, billed: sum(g.list, invoiceNet), paid: sum(g.list, (i) => invoiceStatus(i, db.payments).paid) }));
+  const remove = async (g) => {
+    const paidOnes = g.list.filter((i) => invoiceStatus(i, db.payments).paid > 0);
+    const drop = g.list.filter((i) => !paidOnes.includes(i)).map((i) => i.id);
+    if (!drop.length) return toast.error('Already paid', 'Every student has paid something towards this charge, so it is kept. Give a discount instead.');
+    if (!(await confirmDialog(`Cancel "${g.label}"?`, `Removes it from ${drop.length} student${drop.length === 1 ? '' : 's'}.${paidOnes.length ? ` ${paidOnes.length} who already paid keep it (give them a discount if needed).` : ''}`, { confirmLabel: 'Cancel charge' }))) return;
+    db.removeMany('invoices', drop);
+    toast.success('Charge cancelled', `${drop.length} bill(s) removed`);
+  };
+  return (
+    <>
+      <DataTable
+        rows={groups}
+        initialSort={{ key: 'date', dir: 'desc' }}
+        onRowClick={setView}
+        searchText={(g) => `${g.label} ${g.list.map((i) => L.studentName(i.studentId)).join(' ')}`}
+        empty={<div className="p-10 text-center"><Receipt className="mx-auto h-9 w-9 text-slate-300" /><p className="mt-2 font-semibold">No extra charges yet</p><p className="text-sm text-slate-500">Bill things like excursions, exam fees or uniforms to only the students they apply to.</p><Button className="mt-4" icon={Plus} onClick={() => setOpen(true)}>Add a charge</Button></div>}
+        toolbar={<Button icon={Plus} onClick={() => setOpen(true)}>Add a charge</Button>}
+        columns={[
+          { key: 'label', label: 'Charge', render: (g) => <div><p className="font-semibold">{g.label}</p><p className="text-xs text-slate-500">{g.kind === 'admission' ? 'New admission' : 'Extra charge'} · {db.terms.find((t) => t.id === g.termId)?.name || 'No term'}</p></div> },
+          { key: 'date', label: 'Date', hideOnMobile: true, render: (g) => fmtDate(g.date) },
+          { key: 'amount', label: 'Each', render: (g) => money(g.amount) },
+          { key: 'students', label: 'Students' },
+          { key: 'paid', label: 'Collected', hideOnMobile: true, render: (g) => <span className="text-emerald-600">{money(g.paid)} <span className="text-xs text-slate-400">of {money(g.billed)}</span></span> },
+          { key: 'act', label: '', nosort: true, className: 'w-px', render: (g) => <span onClick={(e) => e.stopPropagation()}><IconButton icon={Trash2} label="Cancel charge" className="hover:!text-accent-600" onClick={() => remove(g)} /></span> },
+        ]}
+      />
+      <ChargeModal open={open} onClose={() => setOpen(false)} />
+      <Modal open={!!view} onClose={() => setView(null)} title={view?.label} subtitle={view ? `${view.students} student(s) · ${money(view.amount)} each` : ''}>
+        {view && (
+          <div className="divide-y divide-slate-100 dark:divide-white/5">
+            {view.list.map((i) => {
+              const st = invoiceStatus(i, db.payments);
+              return (
+                <div key={i.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                  <span><b>{L.studentName(i.studentId)}</b> <span className="text-xs text-slate-500">{L.className(L.student(i.studentId)?.classId)}</span></span>
+                  <Badge tone={st.tone}>{st.label}</Badge>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Modal>
     </>
   );
 }
@@ -291,17 +374,18 @@ export default function Finance() {
         <StatCard label="Billed this term" value={moneyShort(billed)} icon={FileText} />
         <StatCard label="Collected this term" value={moneyShort(paid)} icon={Wallet} tone="green" sub={`${pct(paid, billed)}% collected`} />
         <StatCard label="All arrears" value={moneyShort(bal.totalBilled - bal.totalPaid)} icon={AlertCircle} tone="red" />
-        <StatCard label="Expenses (term)" value={moneyShort(sum(db.expenses.filter((e) => e.date >= db.terms.find((t) => t.id === term).start), (e) => e.amount))} icon={Receipt} tone="amber" />
+        <StatCard label="Expenses (term)" value={moneyShort(sum(db.expenses.filter((e) => e.date >= (db.terms.find((t) => t.id === term)?.start || '0000')), (e) => e.amount))} icon={Receipt} tone="amber" />
       </div>
       <Tabs className="mb-6" value={tab} onChange={setTab} tabs={[
         { value: 'overview', label: 'Overview' }, { value: 'invoices', label: 'Invoices' }, { value: 'payments', label: 'Payments' },
-        { value: 'arrears', label: 'Arrears' }, { value: 'structures', label: 'Fee structures' }, { value: 'expenses', label: 'Expenses' },
+        { value: 'arrears', label: 'Arrears' }, { value: 'structures', label: 'Fee structures' }, { value: 'extra', label: 'Extra charges' }, { value: 'expenses', label: 'Expenses' },
       ]} />
       {tab === 'overview' && <Overview />}
       {tab === 'invoices' && <Invoices />}
       {tab === 'payments' && <Payments />}
       {tab === 'arrears' && <Arrears />}
       {tab === 'structures' && <FeeStructures />}
+      {tab === 'extra' && <ExtraCharges />}
       {tab === 'expenses' && <Expenses />}
     </>
   );

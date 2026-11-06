@@ -2,7 +2,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Search, Moon, Sun, Bell, LogOut, Menu, X, ChevronsLeft, ChevronsRight, Repeat, ChevronDown, Loader2, KeyRound } from 'lucide-react';
 import { useDB, useSession } from '../../data/store';
-import { useCurrentUser, usePortalStudent } from '../../data/selectors';
+import { useCurrentUser, usePortalStudent, TODAY } from '../../data/selectors';
 import { navFor, navItem, MOBILE_TABS, ROLES } from '../../lib/permissions';
 import { Avatar, cx, toast, Modal, Button, Field, Input, Spinner } from '../ui';
 import { LIVE } from '../../config';
@@ -42,18 +42,43 @@ function SidebarNav({ role, collapsed, onNavigate }) {
   );
 }
 
+/** Where we are in the current term, from its real start and end dates. */
+export function termProgress(term, today) {
+  if (!term?.start || !term?.end) return null;
+  const DAY = 86400000;
+  const d = (x) => new Date(`${x}T00:00:00`).getTime();
+  const total = Math.max(1, Math.ceil((d(term.end) - d(term.start) + DAY) / (7 * DAY)));
+  const t = d(today);
+  if (t < d(term.start)) {
+    const n = Math.round((d(term.start) - t) / DAY);
+    return { pct: 0, text: n === 1 ? 'Starts tomorrow' : `Starts in ${n} days`, total };
+  }
+  if (t > d(term.end)) return { pct: 100, text: 'Term ended · holiday', total };
+  const week = Math.min(total, Math.floor((t - d(term.start)) / (7 * DAY)) + 1);
+  return { pct: Math.round(((t - d(term.start) + DAY) / (d(term.end) - d(term.start) + DAY)) * 100), text: `Week ${week} of ${total}`, total };
+}
+
 function SchoolBadge({ collapsed }) {
   const settings = useDB((s) => s.settings);
+  const terms = useDB((s) => s.terms);
   const role = useCurrentUser()?.role;
   if (collapsed || role === 'superadmin') return null;
+  const term = terms.find((t) => t.id === settings.currentTerm);
+  const prog = termProgress(term, TODAY);
   return (
     <div className="mx-3 mb-4 rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 p-4 text-white shadow-lg shadow-brand-900/40">
       <p className="text-[10px] font-bold uppercase tracking-widest text-brand-200">Current term</p>
-      <p className="mt-1 text-sm font-bold">{settings.currentTerm ? `${settings.academicYear} · Term ${settings.currentTerm.slice(-1)}` : 'Not set yet'}</p>
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/20">
-        <div className="h-full w-[58%] rounded-full bg-accent-500" />
-      </div>
-      <p className="mt-1.5 text-[11px] text-brand-100">Week 8 of 14</p>
+      <p className="mt-1 text-sm font-bold">{term ? term.name : 'Not set yet'}</p>
+      {prog ? (
+        <>
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/20">
+            <div className="h-full rounded-full bg-accent-500" style={{ width: `${prog.pct}%` }} />
+          </div>
+          <p className="mt-1.5 text-[11px] text-brand-100">{prog.text}</p>
+        </>
+      ) : (
+        <p className="mt-1.5 text-[11px] text-brand-100">{term ? 'Add the term dates in Classes & Subjects → Terms' : 'Choose it in Classes & Subjects → Terms'}</p>
+      )}
     </div>
   );
 }

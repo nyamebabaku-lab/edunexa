@@ -8,6 +8,7 @@ import { fullName, age, money, downloadCSV } from '../../lib/format';
 import { SECTIONS } from '../../data/seed';
 import { Button, Badge, Avatar, DataTable, FormModal, PageHeader, Select, StatCard, Combo, Input, toast, confirmDialog } from '../../components/ui';
 import { deleteStudents, studentFootprint } from '../../lib/cleanup';
+import { admissionItems, billAdmission } from '../finance/shared';
 import { photoKey, usePhotos, applyPhotoChange } from '../../data/photos';
 import { PhotoField } from '../../components/PhotoEditor';
 
@@ -119,6 +120,7 @@ export default function Students() {
   const [form, setForm] = useState(null);
   const photos = usePhotos((p) => p.map);
   const canManage = user.role === 'admin' || user.role === 'headteacher';
+  const admFee = admissionItems(db).reduce((a, i) => a + i.amount, 0);
 
   const teacherClassIds = useMemo(() => {
     if (user.role !== 'teacher') return null;
@@ -137,13 +139,14 @@ export default function Students() {
     .filter((c) => (!section || c.section === section) && (!teacherClassIds || teacherClassIds.has(c.id)))
     .map((c) => ({ value: c.id, label: c.name }));
 
-  const save = ({ _photo, ...v }) => {
+  const save = ({ _photo, _admission, ...v }) => {
     const parentId = resolveParent(v.parentId);
     if (!parentId) return;
     v.parentId = parentId;
     const rec = db.add('students', { ...v, admissionNo: v.admissionNo?.trim() || nextAdmissionNo(db), status: v.status || 'Active', nationality: 'Ghanaian', admissionDate: v.admissionDate || TODAY });
     applyPhotoChange(photoKey('Student', rec.id), _photo);
-    toast.success('Student added', `${v.firstName} ${v.lastName}${_photo ? ' with photo' : ''}`);
+    const bill = _admission ? billAdmission([rec.id]) : [];
+    toast.success('Student added', `${v.firstName} ${v.lastName}${_photo ? ' with photo' : ''}${bill.length ? ` · admission fee ${money(bill[0].total)} billed` : ''}`);
     setForm(null);
   };
 
@@ -174,7 +177,7 @@ export default function Students() {
               Export
             </Button>
             {(user.role === 'admin' || user.role === 'headteacher') && (
-              <Button icon={Plus} onClick={() => setForm({ gender: 'Female', boarding: 'Day', status: 'Active' })}>
+              <Button icon={Plus} onClick={() => setForm({ gender: 'Female', boarding: 'Day', status: 'Active', _admission: true })}>
                 Add student
               </Button>
             )}
@@ -229,7 +232,11 @@ export default function Students() {
             : []),
         ]}
       />
-      <FormModal open={!!form} onClose={() => setForm(null)} title="Add student" fields={studentFields(db.classes, db.parents, db.routes, db.dorms)} initial={form} onSubmit={save} />
+      <FormModal open={!!form} onClose={() => setForm(null)} title="Add student" initial={form} onSubmit={save}
+        fields={[
+          ...studentFields(db.classes, db.parents, db.routes, db.dorms),
+          ...(admFee > 0 ? [{ name: '_admission', label: `New admission — bill the admission fee (${money(admFee)})`, type: 'checkbox', span: 2 }] : []),
+        ]} />
     </>
   );
 }

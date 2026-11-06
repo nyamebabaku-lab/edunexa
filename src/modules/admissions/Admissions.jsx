@@ -1,5 +1,5 @@
 import { nextAdmissionNo } from '../../lib/numbers';
-import { LIVE } from '../../config';
+import { admissionItems } from '../finance/shared';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ArrowRight, XCircle, CheckCircle2, FileText, LayoutGrid, List, UserPlus, Phone, School } from 'lucide-react';
@@ -55,8 +55,9 @@ export function enrolApplicant(app) {
     previousSchool: app.previousSchool,
   });
   const fs = db.feeStructures.find((f) => f.section === cls?.section);
-  const admissionFee = Number(db.settings.admissionFee ?? (LIVE ? 0 : 500)) || 0;
-  const items = [...(fs?.items || []).filter((i) => Number(i.amount) > 0), ...(admissionFee ? [{ name: 'Admission Fee', amount: admissionFee }] : [])];
+  const termItems = (fs?.items || []).filter((i) => Number(i.amount) > 0);
+  // First bill: the level's general fees plus the one-off admission fees (Fees & Finance → Fee structures).
+  const items = [...termItems, ...admissionItems(db)];
   if (student.boarding === 'Boarder' && Number(db.boardingFee) > 0) items.push({ name: 'Boarding & Feeding', amount: Number(db.boardingFee) });
   // No fees set up yet (new school): enrol without a bill; the accountant can bill later.
   if (!items.length || !db.settings.currentTerm) {
@@ -73,7 +74,8 @@ export function enrolApplicant(app) {
     items,
     discount: 0,
     discountReason: '',
-    total: items.reduce((a, i) => a + i.amount, 0),
+    total: items.reduce((a, i) => a + Number(i.amount), 0),
+    kind: termItems.length ? 'term' : 'admission',
   });
   db.update('applications', app.id, { stage: 'Enrolled', studentId: student.id });
   return student;
@@ -247,8 +249,9 @@ function AdmissionLetter({ app }) {
   const boardingFee = useDB((x) => x.boardingFee);
   const L = useLookups();
   const cls = L.cls(app.classId);
-  const fs = fees.find((f) => f.section === cls.section);
-  const items = [...fs.items, { name: 'Admission Fee (one-off)', amount: 500 }, ...(app.boarding === 'Boarder' ? [{ name: 'Boarding & Feeding', amount: boardingFee }] : [])];
+  const fs = fees.find((f) => f.section === cls?.section);
+  const adm = admissionItems(useDB.getState()).map((i) => ({ ...i, name: `${i.name} (one-off)` }));
+  const items = [...(fs?.items || []).filter((i) => Number(i.amount) > 0), ...adm, ...(app.boarding === 'Boarder' && Number(boardingFee) > 0 ? [{ name: 'Boarding & Feeding', amount: Number(boardingFee) }] : [])];
   return (
     <Paper>
       <Letterhead title="Offer of Admission" right={<p className="mt-2 text-xs text-slate-500">{fmtDate(TODAY, 'd MMMM yyyy')}</p>} />

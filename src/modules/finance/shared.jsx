@@ -1,13 +1,79 @@
 import { useState, useEffect } from 'react';
-import { Receipt, Printer, CreditCard, Smartphone, CheckCircle2 } from 'lucide-react';
+import { Receipt, Printer, CreditCard, Smartphone, CheckCircle2, Plus, Percent } from 'lucide-react';
 import { useDB } from '../../data/store';
 import { useLookups, invoiceNet, invoicePaid, TODAY } from '../../data/selectors';
 import { money, fmtDate, fullName, sum, uid } from '../../lib/format';
-import { Button, Badge, Card, CardHeader, Field, Input, Modal, Select, Textarea, toast, cx, EmptyState } from '../../components/ui';
+import { LIVE } from '../../config';
+import { Button, Badge, Card, CardHeader, Field, Input, Modal, Select, Textarea, Combo, toast, cx, EmptyState } from '../../components/ui';
+import { SECTIONS } from '../../data/seed';
 import PrintView, { Paper, Letterhead } from '../../components/PrintView';
 
 export const METHODS = ['Mobile Money', 'Cash', 'Bank Transfer', 'Cheque', 'Card'];
 export const NETWORKS = ['MTN MoMo', 'Telecel Cash', 'AT Money'];
+
+// ---------------------------------------------------------------- billing rules
+// General term fees come from each level's fee structure and go to every active student (Invoices → Generate bills).
+// Everything else is billed only to the students it applies to:
+//   • Admission fees: kept as a special fee structure (id fee_admission) and billed once to each new student.
+//   • Transport / boarding: added to the term bill of bus riders and boarders only.
+//   • Extra charges (excursion, exam fee, uniform…): billed to chosen students, a class, a level or everyone.
+export const ADMISSION_ID = 'fee_admission';
+export const CHARGE_SUGGESTIONS = ['Excursion', 'Examination fee', 'Mock exams', 'Uniform', 'Sports kit', 'Books & stationery', 'Lab fee', 'ICT fee', 'Graduation', 'Speech & prize day', 'Damages', 'Extra classes', 'PTA levy', 'Development levy'];
+
+/** The new-admission fee items with an amount (demo keeps its old GHS 500 when none was set). */
+export function admissionItems(db) {
+  const st = (db.feeStructures || []).find((f) => f.id === ADMISSION_ID);
+  if (!st) return LIVE ? [] : [{ name: 'Admission Fee', amount: 500 }];
+  return st.items.filter((i) => i.name && Number(i.amount) > 0).map((i) => ({ name: i.name, amount: Number(i.amount) }));
+}
+
+/** A student's main bill for the term (not an admission fee, extra charge, store or canteen purchase). */
+export const isTermBill = (inv) => inv.kind === 'term' || (!inv.kind && !/^(INV-(ST|CN)-|OB-)/.test(inv.invoiceNo || ''));
+
+const nextInvoiceNo = (db, prefix, offset = 0) => `INV-${prefix}-${String(db.invoices.length + 1 + offset).padStart(4, '0')}`;
+
+/** Bills the same items to each student as separate invoices. Returns the invoices made. */
+export function chargeStudents(studentIds, items, { kind = 'extra', termId, dueDate, label } = {}) {
+  const db = useDB.getState();
+  const clean = items.filter((i) => i.name && Number(i.amount) > 0).map((i) => ({ name: i.name.trim(), amount: Number(i.amount) }));
+  if (!studentIds.length || !clean.length) return [];
+  const chargeId = uid('chg');
+  const total = sum(clean, (i) => i.amount);
+  const recs = studentIds.map((sid, n) => ({
+    id: uid('inv'),
+    invoiceNo: nextInvoiceNo(db, kind === 'admission' ? 'AD' : 'EX', n),
+    studentId: sid,
+    termId: termId ?? db.settings.currentTerm ?? '',
+    date: TODAY,
+    dueDate: dueDate || TODAY,
+    items: clean,
+    discount: 0,
+    discountReason: '',
+    total,
+    kind,
+    chargeId,
+    label: label || clean.map((i) => i.name).join(', '),
+  }));
+  db.addMany('invoices', recs);
+  return recs;
+}
+
+/** Admission fee for newly admitted students (nothing when no admission fee is set). */
+export function billAdmission(studentIds) {
+  const items = admissionItems(useDB.getState());
+  return items.length ? chargeStudents(studentIds, items, { kind: 'admission', label: 'Admission fees' }) : [];
+}
+
+/** What a bill is for, in a few words. */
+export function invoiceTitle(inv, terms) {
+  const term = terms.find((t) => t.id === inv.termId)?.name;
+  if (inv.kind === 'admission') return 'Admission fees';
+  if (inv.kind === 'extra') return inv.label || inv.items?.[0]?.name || 'Extra charge';
+  if (/^INV-ST-/.test(inv.invoiceNo || '')) return 'Store purchase';
+  if (/^INV-CN-/.test(inv.invoiceNo || '')) return 'Canteen';
+  if (/^OB-/.test(inv.invoiceNo || '')) return inv.items?.[0]?.name || 'Opening balance';
+  return term ? `${term} fees` : 'School fees';
+}
 
 export function invoiceStatus(inv, payments) {
   const paid = invoicePaid(inv, payments);
@@ -214,7 +280,7 @@ export function InvoiceDoc({ invoice }) {
           <p className="text-slate-500">{L.className(s?.classId)}</p>
         </div>
         <div className="text-right">
-          <p>Term: <b>{db.terms.find((t) => t.id === invoice.termId)?.name}</b></p>
+          <p>For: <b>{invoiceTitle(invoice, db.terms)}</b></p>
           <p>Issued: <b>{fmtDate(invoice.date)}</b></p>
           <p>Due: <b>{fmtDate(invoice.dueDate)}</b></p>
           <p className="mt-2"><Badge tone={st.tone}>{st.label}</Badge></p>
@@ -248,6 +314,8 @@ export function InvoiceDoc({ invoice }) {
 export function StudentStatement({ studentId, canRecord, selfService }) {
   const db = useDB();
   const [pay, setPay] = useState(false);
+  const [charge, setCharge] = useState(false);
+  const [discount, setDiscount] = useState(null);
   const [printInv, setPrintInv] = useState(null);
   const [printRcpt, setPrintRcpt] = useState(null);
   const invoices = db.invoices.filter((i) => i.studentId === studentId).sort((a, b) => b.date.localeCompare(a.date));
@@ -271,7 +339,7 @@ export function StudentStatement({ studentId, canRecord, selfService }) {
       </div>
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Card>
-          <CardHeader title="Invoices" icon={Receipt} />
+          <CardHeader title="Bills" icon={Receipt} action={canRecord && <Button size="sm" variant="soft" icon={Plus} onClick={() => setCharge(true)}>Add charge</Button>} />
           <div className="divide-y divide-slate-100 p-2 dark:divide-white/5">
             {invoices.length === 0 && <EmptyState title="No invoices" />}
             {invoices.map((inv) => {
@@ -279,10 +347,11 @@ export function StudentStatement({ studentId, canRecord, selfService }) {
               return (
                 <div key={inv.id} className="flex items-center gap-3 px-3 py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold">{db.terms.find((t) => t.id === inv.termId)?.name}</p>
-                    <p className="text-xs text-slate-500">{inv.invoiceNo} · {money(invoiceNet(inv))}</p>
+                    <p className="text-sm font-semibold">{invoiceTitle(inv, db.terms)}</p>
+                    <p className="text-xs text-slate-500">{inv.invoiceNo} · {money(invoiceNet(inv))}{inv.discount > 0 ? ` (−${money(inv.discount)} ${inv.discountReason})` : ''}</p>
                   </div>
                   <Badge tone={st.tone}>{st.label}</Badge>
+                  {canRecord && <Button size="sm" variant="ghost" icon={Percent} aria-label="Discount" title="Discount / waiver" onClick={() => setDiscount(inv)} />}
                   <Button size="sm" variant="ghost" icon={Printer} onClick={() => setPrintInv(inv)} />
                 </div>
               );
@@ -306,8 +375,120 @@ export function StudentStatement({ studentId, canRecord, selfService }) {
         </Card>
       </div>
       <RecordPaymentModal open={pay} onClose={() => setPay(false)} studentId={studentId} selfService={selfService} onDone={(ps) => setPrintRcpt(ps[0])} />
+      {canRecord && <ChargeModal open={charge} onClose={() => setCharge(false)} studentIds={[studentId]} />}
+      {canRecord && <DiscountModal invoice={discount} onClose={() => setDiscount(null)} />}
       <PrintView open={!!printInv} onClose={() => setPrintInv(null)} title="Invoice">{printInv && <InvoiceDoc invoice={printInv} />}</PrintView>
       <PrintView open={!!printRcpt} onClose={() => setPrintRcpt(null)} title="Receipt">{printRcpt && <ReceiptDoc payment={printRcpt} />}</PrintView>
     </div>
+  );
+}
+
+/** Bill an extra charge to chosen students, a class, a level or every active student. */
+export function ChargeModal({ open, onClose, studentIds: fixed }) {
+  const db = useDB();
+  const L = useLookups();
+  const [v, setV] = useState({});
+  const [who, setWho] = useState('students');
+  const [picked, setPicked] = useState([]);
+  const [q, setQ] = useState('');
+  useEffect(() => {
+    if (!open) return;
+    setV({ name: '', amount: '', termId: db.settings.currentTerm || '', dueDate: '' });
+    setWho('students');
+    setPicked([]);
+    setQ('');
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const active = db.students.filter((x) => x.status === 'Active');
+  const levels = SECTIONS.filter((sec) => db.classes.some((c) => c.section === sec));
+  const targets = fixed
+    ? fixed
+    : who === 'students' ? picked
+    : who === 'class' ? active.filter((x) => x.classId === v.classId).map((x) => x.id)
+    : who === 'level' ? active.filter((x) => L.cls(x.classId)?.section === v.level).map((x) => x.id)
+    : active.map((x) => x.id);
+  const amount = Number(v.amount) || 0;
+  const list = q.trim() ? active.filter((x) => `${fullName(x)} ${x.admissionNo} ${L.className(x.classId)}`.toLowerCase().includes(q.toLowerCase())) : active;
+  const save = () => {
+    if (!v.name?.trim()) return toast.error('Enter what the charge is for', 'e.g. Excursion to Cape Coast');
+    if (amount <= 0) return toast.error('Enter the amount');
+    if (!targets.length) return toast.error('Choose who pays', 'Tick at least one student');
+    const recs = chargeStudents(targets, [{ name: v.name, amount }], { termId: v.termId, dueDate: v.dueDate || TODAY });
+    toast.success('Charge added', `${v.name.trim()} · ${money(amount)} to ${recs.length} student${recs.length === 1 ? '' : 's'}`);
+    onClose();
+  };
+  const set = (k) => (e) => setV({ ...v, [k]: e?.target ? e.target.value : e });
+  return (
+    <Modal open={open} onClose={onClose} title="Add a charge" subtitle={fixed?.length === 1 ? `For ${L.studentName(fixed[0])} only` : 'Billed only to the students you choose'} size="lg"
+      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button icon={CheckCircle2} onClick={save}>Bill {targets.length} student{targets.length === 1 ? '' : 's'}{amount ? ` · ${money(amount * targets.length)}` : ''}</Button></>}>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="What is it for? *" className="sm:col-span-2"><Combo value={v.name || ''} onChange={set('name')} options={CHARGE_SUGGESTIONS} placeholder="e.g. Excursion, Exam fee, Uniform" /></Field>
+        <Field label="Amount per student *"><Input type="number" min="0" value={v.amount ?? ''} onChange={set('amount')} placeholder="0.00" /></Field>
+        <Field label="Due date"><Input type="date" value={v.dueDate || ''} onChange={set('dueDate')} /></Field>
+        <Field label="Term" className="sm:col-span-2"><Select value={v.termId || ''} onChange={set('termId')} placeholder="No term" options={db.terms.map((t) => ({ value: t.id, label: t.name }))} /></Field>
+      </div>
+      {!fixed && (
+        <div className="mt-5">
+          <span className="label">Who pays?</span>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {[['students', 'Chosen students'], ['class', 'A class'], ['level', 'A level'], ['all', 'Every active student']].map(([k, label]) => (
+              <button type="button" key={k} onClick={() => setWho(k)} className={cx('rounded-xl px-3 py-2 text-sm font-semibold ring-1 ring-inset', who === k ? 'bg-brand-600 text-white ring-brand-600' : 'text-slate-600 ring-slate-200 dark:text-slate-300 dark:ring-white/10')}>{label}</button>
+            ))}
+          </div>
+          {who === 'class' && <Select value={v.classId || ''} onChange={set('classId')} placeholder="Choose a class" options={db.classes.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((c) => ({ value: c.id, label: c.name }))} />}
+          {who === 'level' && <Select value={v.level || ''} onChange={set('level')} placeholder="Choose a level" options={levels} />}
+          {who === 'students' && (
+            <div className="rounded-xl border border-slate-200 dark:border-white/10">
+              <div className="flex items-center gap-2 border-b border-slate-100 p-2 dark:border-white/5">
+                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, admission no. or class" className="!py-2" />
+                <span className="shrink-0 px-2 text-xs font-semibold text-slate-500">{picked.length} ticked</span>
+              </div>
+              <div className="max-h-64 overflow-y-auto p-1">
+                {list.slice(0, 300).map((x) => (
+                  <label key={x.id} className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-white/5">
+                    <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={picked.includes(x.id)} onChange={() => setPicked((p) => (p.includes(x.id) ? p.filter((y) => y !== x.id) : [...p, x.id]))} />
+                    <span className="flex-1 font-medium">{fullName(x)}</span>
+                    <span className="text-xs text-slate-400">{L.className(x.classId)} · {x.admissionNo}</span>
+                  </label>
+                ))}
+                {!list.length && <p className="p-3 text-sm text-slate-500">No students found.</p>}
+              </div>
+            </div>
+          )}
+          {who !== 'students' && <p className="mt-2 text-sm text-slate-500">{targets.length} active student{targets.length === 1 ? '' : 's'} will be billed.</p>}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+/** Discount or waiver on one bill (scholarship, staff child, sibling discount…). */
+export function DiscountModal({ invoice, onClose }) {
+  const db = useDB();
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+  useEffect(() => {
+    if (invoice) { setAmount(invoice.discount || ''); setReason(invoice.discountReason || ''); }
+  }, [invoice]);
+  const total = Number(invoice?.total) || 0;
+  const save = () => {
+    const d = Number(amount) || 0;
+    if (d < 0 || d > total) return toast.error('Check the amount', `The discount must be between 0 and ${money(total)}`);
+    if (d > 0 && !reason.trim()) return toast.error('Give a reason', 'e.g. Scholarship, staff child, sibling discount');
+    db.update('invoices', invoice.id, { discount: d, discountReason: d ? reason.trim() : '' });
+    toast.success(d ? 'Discount saved' : 'Discount removed', d ? `${money(d)} off ${invoice.invoiceNo}` : invoice.invoiceNo);
+    onClose();
+  };
+  return (
+    <Modal open={!!invoice} onClose={onClose} title="Discount / waiver" subtitle={invoice ? `${invoice.invoiceNo} · bill ${money(total)}` : ''} size="sm"
+      footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button icon={CheckCircle2} onClick={save}>Save</Button></>}>
+      <div className="space-y-4">
+        <Field label="Amount off"><Input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" /></Field>
+        <div className="flex flex-wrap gap-2">
+          {[25, 50, 100].map((p) => <Button key={p} size="sm" variant="secondary" onClick={() => setAmount(Math.round((total * p) / 100 * 100) / 100)}>{p === 100 ? 'Full waiver' : `${p}%`}</Button>)}
+        </div>
+        <Field label="Reason"><Combo value={reason} onChange={setReason} options={['Scholarship', 'Staff child', 'Sibling discount', 'Bursary', 'Management decision', 'Billing correction']} /></Field>
+        <p className="text-xs text-slate-500">New amount due on this bill: <b>{money(Math.max(0, total - (Number(amount) || 0)))}</b> (before payments).</p>
+      </div>
+    </Modal>
   );
 }
