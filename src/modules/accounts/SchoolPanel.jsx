@@ -97,7 +97,9 @@ function StarterCard() {
 
 export default function SchoolPanel() {
   const school = useLive((s) => s.school);
-  const pending = useDB((s) => s.users.filter((u) => u.status === 'Pending').length);
+  const pendingAccounts = useDB((s) => s.users.filter((u) => u.status === 'Pending').length);
+  const pendingChildren = useLive((s) => s.childRequests.filter((r) => r.status === 'pending').length);
+  const pending = pendingAccounts + pendingChildren;
   const empty = useDB((s) => s.classes.length === 0 && s.students.length === 0);
   const fresh = useDB((s) => s.students.length === 0 && !s.settings.setupSeen);
   const starterDone = useDB((s) => s.settings.starterDone || s.subjects.length > 0);
@@ -146,7 +148,7 @@ export default function SchoolPanel() {
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-500/10"><Hourglass className="h-6 w-6" /></span>
           <div className="min-w-0 flex-1">
             <p className="text-2xl font-extrabold">{pending}</p>
-            <p className="text-sm text-slate-500">account{pending === 1 ? '' : 's'} waiting for your approval</p>
+            <p className="text-sm text-slate-500">{pendingChildren ? `${pendingAccounts} account${pendingAccounts === 1 ? '' : 's'} + ${pendingChildren} child link${pendingChildren === 1 ? '' : 's'} waiting` : `account${pending === 1 ? '' : 's'} waiting for your approval`}</p>
           </div>
           <Button size="sm" icon={ArrowRight} onClick={() => navigate('/accounts')}>{pending ? 'Review' : 'Accounts'}</Button>
         </Card>

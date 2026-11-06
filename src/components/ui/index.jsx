@@ -557,7 +557,7 @@ export function FormFields({ fields, value, onChange }) {
           return (
             <div key={f.name} className={f.span === 2 ? 'sm:col-span-2' : ''}>
               {f.label && <span className="label">{f.label}</span>}
-              {f.render(value, (v) => set(f.name, v))}
+              {f.render(value, (v) => set(f.name, v), (patch) => onChange({ ...value, ...patch }))}
             </div>
           );
         const common = {

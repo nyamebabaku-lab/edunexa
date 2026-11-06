@@ -89,11 +89,12 @@ function ChildSwitcher() {
   const classes = useDB((s) => s.classes);
   if (children.length < 2) return null;
   return (
-    <div className="relative hidden sm:block">
+    <div className="relative">
       <select
+        aria-label="Choose child"
         value={student?.id}
         onChange={(e) => setChild(e.target.value)}
-        className="h-10 appearance-none rounded-xl border border-slate-200 bg-white pl-3 pr-8 text-sm font-semibold text-slate-700 outline-none focus:border-brand-500 dark:border-white/10 dark:bg-navy-900 dark:text-slate-200"
+        className="h-10 max-w-[9.5rem] appearance-none truncate rounded-xl border border-slate-200 bg-white pl-3 pr-8 text-sm font-semibold text-slate-700 outline-none focus:border-brand-500 dark:border-white/10 dark:bg-navy-900 dark:text-slate-200 sm:max-w-none"
       >
         {children.map((c) => (
           <option key={c.id} value={c.id}>

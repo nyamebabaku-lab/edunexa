@@ -21,6 +21,7 @@ import { ingredientLevel, useCanteenIncome, CAT_ICON } from '../canteen/Canteen'
 import { sessionStatus } from '../../lib/live';
 import { sortedPeriods } from '../../data/selectors';
 import { FrontBackdrop, useFrontImage } from '../../components/FrontImage';
+import { LinkChildCard } from '../parents/LinkChild';
 import { photoKey } from '../../data/photos';
 
 function Hello({ name, sub, display }) {
@@ -534,6 +535,7 @@ function FamilyDashboard({ user }) {
     return (
       <>
         <Hello name={user.name} sub={isParent ? 'Parent / guardian' : 'Student'} />
+        {isParent && LIVE && <LinkChildCard />}
         <Card className="mb-6">
           <EmptyState icon={GraduationCap} title={isParent ? 'No child linked yet' : 'Your record is not linked yet'} text={isParent ? "Your child's school record will show here once the school links it to your account. Ask the school office to check your child's admission number." : 'Ask the school office to check your admission number.'} />
         </Card>
@@ -553,6 +555,7 @@ function FamilyDashboard({ user }) {
     <>
       <Hello name={user.name} sub={isParent ? `Parent of ${children.map((c) => c.firstName).join(' & ')}` : `${L.className(student.classId)} · ${student.admissionNo}`} />
       {!isParent && <ClockCard />}
+      {isParent && LIVE && <LinkChildCard />}
       {!isParent && <LiveCard />}
       <div className={cx('grid grid-cols-1 gap-6', kids.length > 1 ? 'lg:grid-cols-2' : 'lg:grid-cols-[1fr_1.4fr]')}>
         {kids.map((k) => (

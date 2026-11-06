@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Pencil, IdCard, ArrowUpRight, Phone, Mail, MapPin, HeartPulse, Bus, BedDouble, BookOpen, User, Award, ClipboardCheck, Wallet, ShieldAlert, Trash2 } from 'lucide-react';
 import { useDB } from '../../data/store';
-import { useLookups, useCurrentUser, attendanceStats, loanStatus, sortedClasses } from '../../data/selectors';
+import { guardianIds, isGuardianOf, useLookups, useCurrentUser, attendanceStats, loanStatus, sortedClasses } from '../../data/selectors';
 import { fullName, fmtDate, age, money } from '../../lib/format';
 import { gradeTone } from '../../lib/grading';
 import { classResults } from '../../lib/results';
@@ -78,7 +78,7 @@ function IdCardDoc({ student }) {
             <p><span className="text-slate-400">Class:</span> {L.className(student.classId)}</p>
             <p><span className="text-slate-400">DOB:</span> {fmtDate(student.dob)}</p>
             <p><span className="text-slate-400">Blood:</span> {student.bloodGroup || '—'}</p>
-            <p><span className="text-slate-400">Emergency:</span> {L.parent(student.parentId)?.phone}</p>
+            <p><span className="text-slate-400">Emergency:</span> {L.parent(student.parentId)?.phone || student.parentPhone}</p>
           </div>
           <QRCode value={badgeToken('Student', student.id)} size={76} className="ml-auto self-end" />
         </div>
@@ -117,9 +117,10 @@ export default function StudentProfile() {
   if (!student) return <Card><EmptyState title="Student not found" action={<Button onClick={() => navigate('/students')}>Back to students</Button>} /></Card>;
 
   const cls = L.cls(student.classId);
-  const parent = L.parent(student.parentId);
+  const guardians = guardianIds(student).map((id) => L.parent(id)).filter(Boolean);
+  const parentUsers = new Set(db.users.filter((u) => u.role === 'parent').map((u) => u.linkedId));
   const att = attendanceStats(db.attendance, student.id);
-  const siblings = db.students.filter((s) => s.parentId === student.parentId && s.id !== student.id);
+  const siblings = db.students.filter((s) => s.id !== student.id && guardianIds(student).some((g) => isGuardianOf(s, g)));
   const route = db.routes.find((r) => r.id === student.busRouteId);
   const dorm = db.dorms.find((d) => d.id === student.dormId);
   const loans = db.loans.filter((l) => l.memberId === student.id);
@@ -207,18 +208,30 @@ export default function StudentProfile() {
             </Card>
             <div className="space-y-6">
               <Card>
-                <CardHeader title="Parent / guardian" icon={User} />
-                <div className="space-y-3 p-5">
-                  <div className="flex items-center gap-3">
-                    <Avatar name={L.parentName(parent?.id)} />
-                    <div>
-                      <p className="font-bold text-slate-900 dark:text-white">{L.parentName(parent?.id)}</p>
-                      <p className="text-xs text-slate-500">{parent?.relation} · {parent?.occupation}</p>
+                <CardHeader title={guardians.length > 1 ? 'Parents / guardians' : 'Parent / guardian'} icon={User} />
+                <div className="divide-y divide-slate-100 dark:divide-white/5">
+                  {guardians.map((parent) => (
+                    <div key={parent.id} className="space-y-3 p-5">
+                      <div className="flex items-center gap-3">
+                        <Avatar name={L.parentName(parent.id)} />
+                        <div>
+                          <p className="font-bold text-slate-900 dark:text-white">{L.parentName(parent.id)}</p>
+                          <p className="text-xs text-slate-500">{[parent.relation, parent.occupation].filter(Boolean).join(' · ')}</p>
+                        </div>
+                        {parentUsers.has(parent.id) ? <Badge tone="green" className="ml-auto">On the app</Badge> : <Badge tone="slate" className="ml-auto">No app account</Badge>}
+                      </div>
+                      {parent.phone && <p className="flex items-center gap-2 text-sm"><Phone className="h-4 w-4 text-brand-600" /> <a href={`tel:${parent.phone}`}>{parent.phone}</a></p>}
+                      {parent.email && <p className="flex items-center gap-2 text-sm"><Mail className="h-4 w-4 text-brand-600" /> {parent.email}</p>}
+                      {parent.address && <p className="flex items-center gap-2 text-sm"><MapPin className="h-4 w-4 text-brand-600" /> {parent.address}</p>}
                     </div>
-                  </div>
-                  <p className="flex items-center gap-2 text-sm"><Phone className="h-4 w-4 text-brand-600" /> <a href={`tel:${parent?.phone}`}>{parent?.phone}</a></p>
-                  <p className="flex items-center gap-2 text-sm"><Mail className="h-4 w-4 text-brand-600" /> {parent?.email}</p>
-                  <p className="flex items-center gap-2 text-sm"><MapPin className="h-4 w-4 text-brand-600" /> {parent?.address}</p>
+                  ))}
+                  {!guardians.length && (
+                    <div className="space-y-2 p-5 text-sm">
+                      <p className="font-semibold text-slate-900 dark:text-white">{student.parentName || 'No parent linked yet'}</p>
+                      {student.parentPhone && <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-brand-600" /> <a href={`tel:${student.parentPhone}`}>{student.parentPhone}</a> <span className="text-xs text-slate-400">(for texts)</span></p>}
+                      <p className="text-xs text-slate-500">The parent links themselves in the EduNexa app with the school code and admission number <b>{student.admissionNo}</b>.</p>
+                    </div>
+                  )}
                 </div>
               </Card>
               {siblings.length > 0 && (
@@ -350,9 +363,7 @@ export default function StudentProfile() {
         fields={studentFields(db.classes, db.parents, db.routes, db.dorms)}
         initial={student}
         onSubmit={({ _photo, ...v }) => {
-          const parentId = resolveParent(v.parentId);
-          if (!parentId) return;
-          db.update('students', student.id, { ...v, parentId });
+          db.update('students', student.id, { ...v, parentId: resolveParent(v.parentId) });
           applyPhotoChange(photoKey('Student', student.id), _photo);
           toast.success('Student updated');
           setEdit(false);

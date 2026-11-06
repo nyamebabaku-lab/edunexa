@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Phone, MessageSquare } from 'lucide-react';
 import { useDB } from '../../data/store';
-import { useLookups, useBalances, useCurrentUser } from '../../data/selectors';
+import { useLookups, useBalances, useCurrentUser, isGuardianOf } from '../../data/selectors';
+import ChildRequests from './ChildRequests';
+import { LIVE } from '../../config';
 import { deleteParents } from '../../lib/cleanup';
 import { fullName, money } from '../../lib/format';
 import { Avatar, Badge, PageHeader, Modal, Card, Button, cx } from '../../components/ui';
@@ -16,16 +18,20 @@ export default function Parents() {
   const navigate = useNavigate();
   const [view, setView] = useState(null);
   const user = useCurrentUser();
-  const kids = (pid) => students.filter((s) => s.parentId === pid);
+  const kids = (pid) => students.filter((s) => isGuardianOf(s, pid));
+  const users = useDB((s) => s.users);
+  const onApp = new Set(users.filter((u) => u.role === 'parent').map((u) => u.linkedId));
   const familyBalance = (pid) => kids(pid).reduce((a, s) => a + bal.get(s.id).balance, 0);
 
   return (
     <>
-      <PageHeader title="Parents & Guardians" subtitle="Family contacts, linked children and fee positions" />
+      <PageHeader title="Parents & Guardians" subtitle={LIVE ? 'Parents join from the EduNexa app with the school code and their child\'s admission number' : 'Family contacts, linked children and fee positions'} />
+      {LIVE && <ChildRequests />}
       <CrudPage
         collection="parents"
         noun="parent"
         onRowClick={setView}
+        canAdd={!LIVE}
         canDelete={user?.role === 'admin' || user?.role === 'superadmin'}
         onDelete={deleteParents}
         deleteNote={(list) => { const n = list.reduce((a, p) => a + kids(p.id).length, 0); return n ? `${n} child${n === 1 ? ' stays' : 'ren stay'} in the school with no parent linked — choose a new parent for them later.` : ''; }}
@@ -53,7 +59,7 @@ export default function Parents() {
                 <Avatar name={`${p.firstName} ${p.lastName}`} size="sm" />
                 <div>
                   <p className="font-semibold text-slate-900 dark:text-white">{p.title} {p.firstName} {p.lastName}</p>
-                  <p className="text-xs text-slate-500">{p.relation} · {p.occupation}</p>
+                  <p className="text-xs text-slate-500">{[p.relation, p.occupation].filter(Boolean).join(' · ')}{LIVE && (onApp.has(p.id) ? <span className="ml-1.5 font-semibold text-emerald-600">· On the app</span> : <span className="ml-1.5 text-slate-400">· No app account</span>)}</p>
                 </div>
               </div>
             ),

@@ -14,7 +14,7 @@ import { startPush, stopPush } from '../lib/push';
  * phase: 'loading' | 'signedOut' | 'noProfile' | 'waiting' | 'wrongApp' | 'ready'
  * profile / school: rows from the server; schools: every school (Super Admin only).
  */
-export const useLive = create(() => ({ notifications: [], phase: 'loading', profile: null, school: null, superExists: true, schools: [], stats: {}, pending: 0, syncing: false, lastSync: null }));
+export const useLive = create(() => ({ notifications: [], childRequests: [], phase: 'loading', profile: null, school: null, superExists: true, schools: [], stats: {}, pending: 0, syncing: false, lastSync: null }));
 const L = (patch) => useLive.setState(patch);
 
 const OUTBOX = storeKey('edunexa-outbox');
@@ -132,6 +132,26 @@ async function loadPlatform() {
   L({ schools, stats: counts });
 }
 
+/** Requests by parents to link more children (a parent sees their own; Owner/Admin and Head Teacher see the school's). */
+async function loadChildRequests() {
+  const { profile } = useLive.getState();
+  if (!profile || !['parent', 'admin', 'headteacher'].includes(profile.role)) return L({ childRequests: [] });
+  const { data } = await supabase.from('child_requests').select('*').neq('status', 'failed').order('created_at', { ascending: false }).limit(200);
+  L({ childRequests: data || [] });
+}
+/** Parent: ask to link another child. Returns the request, or null when the details did not match. */
+export async function requestChild(admissionNo, dob) {
+  const r = await rpc('request_child', { admission_no: admissionNo, dob });
+  loadChildRequests().catch(() => {});
+  return r?.id ? r : null;
+}
+/** Owner/Admin or Head Teacher: approve or decline a parent's request. */
+export async function decideChildRequest(id, approve) {
+  const r = await rpc('decide_child_request', { request_id: id, approve });
+  await loadChildRequests().catch(() => {});
+  return r;
+}
+
 async function loadNotifications() {
   const { data } = await supabase.from('notifications').select('id,created_at,kind,title,body,link,read_at').order('created_at', { ascending: false }).limit(100);
   L({ notifications: data || [] });
@@ -155,6 +175,7 @@ export async function reload() {
     if (profile.role === 'superadmin') await loadPlatform();
     else await loadSchool(profile);
     loadNotifications().catch(() => {});
+    loadChildRequests().catch(() => {});
     L({ lastSync: new Date().toISOString() });
   } catch (e) {
     toast.error('Could not refresh', friendly(e.message));
@@ -191,6 +212,12 @@ function subscribe(profile) {
       if (school.status !== 'active') refresh();
     });
   }
+  if (['parent', 'admin', 'headteacher'].includes(profile.role))
+    ch.on('postgres_changes', { event: '*', schema: 'edunexa', table: 'child_requests' }, (ev) => {
+      loadChildRequests().catch(() => {});
+      // A parent's request was approved: their new child's records become readable — load them.
+      if (profile.role === 'parent' && ev.new?.status === 'approved' && ev.new?.user_id === profile.user_id) reload();
+    });
   ch.on('postgres_changes', { event: 'INSERT', schema: 'edunexa', table: 'notifications', filter: `user_id=eq.${profile.user_id}` }, (ev) => {
     L({ notifications: [ev.new, ...useLive.getState().notifications].slice(0, 100) });
   });

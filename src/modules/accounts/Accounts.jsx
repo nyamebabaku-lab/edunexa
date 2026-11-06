@@ -8,6 +8,7 @@ import { useCurrentUser } from '../../data/selectors';
 import { useLive, setAccountStatus, deleteAccount, resetPassword, refreshUsers } from '../../data/sync';
 import { ROLES } from '../../lib/permissions';
 import { fmtDate, fmtDateTime } from '../../lib/format';
+import ChildRequests from '../parents/ChildRequests';
 import { Avatar, Badge, Button, Card, DataTable, EmptyState, IconButton, PageHeader, Select, Tabs, Modal, Field, Input, confirmDialog, toast, Spinner } from '../../components/ui';
 
 const STATUS_TONE = { Pending: 'amber', Active: 'green', Suspended: 'red', Deactivated: 'slate' };
@@ -104,6 +105,7 @@ export default function Accounts() {
         subtitle={isSuper ? 'Every account on EduNexa. Approve school owners here or on the Schools page.' : 'Approve the teachers, parents, students and staff who join your school with its code.'}
         actions={<Button variant="secondary" icon={refreshing ? Spinner : RefreshCw} onClick={async () => { setRefreshing(true); await refreshUsers().catch(() => {}); setRefreshing(false); }}>Refresh</Button>}
       />
+      {!isSuper && <ChildRequests />}
       <Tabs
         className="mb-5"
         value={tab}

@@ -12,61 +12,29 @@ import { admissionItems, billAdmission } from '../finance/shared';
 import { photoKey, usePhotos, applyPhotoChange } from '../../data/photos';
 import { PhotoField } from '../../components/PhotoEditor';
 
-const TITLES = ['Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Rev.'];
-const RELATIONS = ['Father', 'Mother', 'Guardian', 'Uncle', 'Aunt', 'Grandparent'];
-
-/** Pick an existing parent, or type in a new one (saved together with the student). */
-export function ParentPicker({ value, onChange, parents }) {
-  const BLANK = { title: 'Mrs.', relation: 'Mother', firstName: '', lastName: '', phone: '' };
-  // No parents in the school yet: go straight to typing in a new one.
-  const isNew = (typeof value === 'object' && value !== null) || (!parents.length && !value);
-  const np = typeof value === 'object' && value !== null ? value : BLANK;
-  const setN = (k) => (e) => onChange({ ...np, [k]: e?.target ? e.target.value : e });
-  const startNew = () => onChange({ ...BLANK });
+/**
+ * Parents join from their own app account (school code + admission number), so staff never type a new parent here.
+ * Staff may pick an existing parent (e.g. for a brother or sister), or note a name and phone for texts until the parent joins.
+ */
+export function ParentPicker({ value, onChange, parents, note, onNote }) {
+  const v = typeof value === 'string' ? value : '';
   return (
     <div className="space-y-2">
-      {!isNew ? (
-        <div className="flex gap-2">
-          <Select className="flex-1" value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={parents.length ? 'Choose a parent…' : 'No parents yet'}
-            options={[...parents].sort((a, b) => `${a.lastName}${a.firstName}`.localeCompare(`${b.lastName}${b.firstName}`)).map((p) => ({ value: p.id, label: `${p.title} ${p.firstName} ${p.lastName} · ${p.phone}` }))} />
-          <Button type="button" variant="secondary" icon={UserPlus} onClick={startNew}>New parent</Button>
-        </div>
-      ) : (
-        <div className="rounded-xl border border-brand-200 bg-brand-50/40 p-3 dark:border-brand-500/20 dark:bg-brand-500/5">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wide text-brand-700 dark:text-brand-300">New parent / guardian</p>
-            {parents.length > 0 && <button type="button" className="text-xs font-semibold text-brand-600 hover:underline" onClick={() => onChange('')}>Choose existing instead</button>}
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <Combo value={np.title} onChange={setN('title')} options={TITLES} placeholder="Title" />
-            <Combo value={np.relation} onChange={setN('relation')} options={RELATIONS} placeholder="Relationship" />
-            <Input value={np.firstName} onChange={setN('firstName')} placeholder="First name *" />
-            <Input value={np.lastName} onChange={setN('lastName')} placeholder="Surname *" />
-            <Input className="sm:col-span-2" type="tel" value={np.phone} onChange={setN('phone')} placeholder="Phone * (for texts and parent sign-up)" />
-          </div>
+      <Select value={v} onChange={(e) => onChange(e.target.value)} placeholder="Not linked yet — the parent links with the admission number"
+        options={[...parents].sort((a, b) => `${a.lastName}${a.firstName}`.localeCompare(`${b.lastName}${b.firstName}`)).map((p) => ({ value: p.id, label: `${p.title ? p.title + ' ' : ''}${p.firstName} ${p.lastName}${p.phone ? ' · ' + p.phone : ''}` }))} />
+      {!v && (
+        <div className="grid gap-2 rounded-xl bg-slate-50 p-3 dark:bg-white/5 sm:grid-cols-2">
+          <Input value={note.parentName || ''} onChange={(e) => onNote({ parentName: e.target.value })} placeholder="Parent's name (optional)" />
+          <Input type="tel" value={note.parentPhone || ''} onChange={(e) => onNote({ parentPhone: e.target.value })} placeholder="Parent's phone for texts (optional)" />
+          <p className="text-xs text-slate-500 sm:col-span-2">Used for fee and gate texts until the parent creates their own account in the app.</p>
         </div>
       )}
     </div>
   );
 }
 
-/**
- * Turns the parent picker's value into a parent id, creating the parent when a new one was typed in.
- * Reuses an existing parent with the same phone number. Returns null (and shows why) when details are missing.
- */
-export function resolveParent(v) {
-  if (typeof v === 'string') return v || (toast.error('Missing information', 'Choose the parent / guardian or add a new one'), null);
-  if (!v || !v.firstName?.trim() || !v.lastName?.trim() || !v.phone?.trim()) return toast.error('Missing information', 'Enter the new parent\'s first name, surname and phone'), null;
-  const db = useDB.getState();
-  const digits = (x) => String(x || '').replace(/\D/g, '').slice(-9);
-  const same = db.parents.find((p) => digits(p.phone) && digits(p.phone) === digits(v.phone));
-  if (same) return same.id;
-  const female = ['Mrs.', 'Ms.'].includes(v.title) || ['Mother', 'Aunt'].includes(v.relation);
-  const rec = db.add('parents', { title: v.title || '', relation: v.relation || 'Guardian', firstName: v.firstName.trim(), lastName: v.lastName.trim(), phone: v.phone.trim(), gender: female ? 'Female' : 'Male', altPhone: '', email: '', occupation: '', address: '' });
-  // Not allowed to save parents: stop, so the student is never linked to a parent that doesn't exist.
-  if (!useDB.getState().parents.some((p) => p.id === rec.id)) return null;
-  return rec.id;
-}
+/** The chosen parent id ('' when none). Kept for older callers. */
+export const resolveParent = (v) => (typeof v === 'string' ? v : '');
 
 /** Asks, then deletes the students with their own records. Resolves true when deleted. */
 export async function confirmDeleteStudents(list) {
@@ -95,7 +63,7 @@ export function studentFields(classes, parents, routes, dorms) {
     { name: 'gender', label: 'Gender', type: 'select', options: ['Male', 'Female'], required: true },
     { name: 'dob', label: 'Date of birth', type: 'date', required: true },
     { name: 'classId', label: 'Class', type: 'select', options: sortedClasses(classes).map((c) => ({ value: c.id, label: c.name })), required: true, emptyHint: 'No classes yet — add them in Classes & Subjects first' },
-    { name: 'parentId', label: 'Parent / guardian *', type: 'custom', span: 2, render: (v, set) => <ParentPicker value={v.parentId} onChange={set} parents={parents} /> },
+    { name: '_family', label: 'Parent / guardian', type: 'custom', span: 2, render: (v, _set, patch) => <ParentPicker value={v.parentId} parents={parents} note={v} onChange={(id) => patch({ parentId: id })} onNote={patch} /> },
     { name: 'boarding', label: 'Day / Boarding', type: 'select', options: ['Day', 'Boarder'] },
     { name: 'house', label: 'House', type: 'select', options: ['Aggrey', 'Nkrumah', 'Guggisberg', 'Yaa Asantewaa'] },
     { name: 'dormId', label: 'Dormitory', type: 'select', options: dorms.map((d) => ({ value: d.id, label: d.name })), hidden: (v) => v.boarding !== 'Boarder', emptyHint: 'Add dormitories in Hostel & Boarding' },
@@ -143,9 +111,6 @@ export default function Students() {
     .map((c) => ({ value: c.id, label: c.name }));
 
   const save = ({ _photo, _admission, ...v }) => {
-    const parentId = resolveParent(v.parentId);
-    if (!parentId) return;
-    v.parentId = parentId;
     const rec = db.add('students', { ...v, admissionNo: v.admissionNo?.trim() || nextAdmissionNo(db), status: v.status || 'Active', nationality: 'Ghanaian', admissionDate: v.admissionDate || TODAY });
     applyPhotoChange(photoKey('Student', rec.id), _photo);
     const bill = _admission ? billAdmission([rec.id]) : [];
@@ -228,7 +193,7 @@ export default function Students() {
           { key: 'classId', label: 'Class', sort: (s) => L.cls(s.classId)?.order, render: (s) => L.className(s.classId) },
           { key: 'gender', label: 'Gender', hideOnMobile: true },
           { key: 'dob', label: 'Age', hideOnMobile: true, render: (s) => age(s.dob) },
-          { key: 'parentId', label: 'Parent', hideOnMobile: true, sort: (s) => L.parentName(s.parentId), render: (s) => <span className="text-slate-600 dark:text-slate-300">{L.parentName(s.parentId)}</span> },
+          { key: 'parentId', label: 'Parent', hideOnMobile: true, sort: (s) => L.parentName(s.parentId), render: (s) => (s.parentId ? <span className="text-slate-600 dark:text-slate-300">{L.parentName(s.parentId)}{s.parentId2 ? ` & ${L.parentName(s.parentId2)}` : ''}</span> : <span className="text-xs text-slate-400">{s.parentName ? `${s.parentName} · ` : ''}not joined yet</span>) },
           { key: 'boarding', label: 'Type', hideOnMobile: true, render: (s) => <Badge tone={s.boarding === 'Boarder' ? 'violet' : 'slate'}>{s.boarding}</Badge> },
           ...((user.role === 'admin' || user.role === 'headteacher')
             ? [{ key: 'balance', label: 'Balance', sort: (s) => bal.get(s.id).balance, render: (s) => { const b = bal.get(s.id).balance; return <span className={b > 0 ? 'font-semibold text-accent-600' : 'text-emerald-600'}>{money(b)}</span>; } }]

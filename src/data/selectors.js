@@ -41,6 +41,10 @@ export const useLookups = () => {
   }, [students, classes, subjects, staff, parents]);
 };
 
+/** Parent record ids of a student's guardians (up to two parent accounts). */
+export const guardianIds = (s) => [s?.parentId, s?.parentId2].filter(Boolean);
+export const isGuardianOf = (s, parentId) => !!parentId && (s.parentId === parentId || s.parentId2 === parentId);
+
 export const sortedClasses = (classes) => [...classes].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || String(a.name).localeCompare(String(b.name), undefined, { numeric: true }));
 
 /** Lesson periods and breaks in time order. */
@@ -95,7 +99,7 @@ export function usePortalStudent() {
   if (!user) return { student: null, children: [] };
   if (user.role === 'student') return { student: students.find((s) => s.id === user.linkedId), children: [] };
   if (user.role === 'parent') {
-    const children = students.filter((s) => s.parentId === user.linkedId);
+    const children = students.filter((s) => isGuardianOf(s, user.linkedId));
     return { student: children.find((c) => c.id === childId) || children[0], children };
   }
   return { student: null, children: [] };

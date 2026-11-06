@@ -26,6 +26,7 @@ export default function CrudPage({
   onDelete, // (ids) => void — custom delete (e.g. also removes linked records); default removes the rows
   deleteNote, // (rows) => string — extra line for the confirmation
   bulkDelete = true,
+  canAdd = true,
 }) {
   const all = useDB((s) => s[collection]);
   const add = useDB((s) => s.add);
@@ -96,7 +97,7 @@ export default function CrudPage({
         toolbar={
           <>
             {toolbar}
-            {canEdit && fields && (
+            {canEdit && canAdd && fields && (
               <Button icon={Plus} onClick={() => setEditing({ ...defaults })}>
                 Add {noun}
               </Button>

@@ -1,3 +1,4 @@
+import { parentPhones } from './sms';
 // Gate attendance: rotating gate QR codes, personal ID badges and clock-in/out rules.
 import { format } from 'date-fns';
 import { useDB } from '../data/store';
@@ -76,8 +77,8 @@ export function clock(personType, personId, method) {
     if (personType === 'Student') {
       if (s.gate.autoRegister) markRegister(person, late ? 'L' : 'P');
       if (s.gate.notifyParents) {
-        const parent = db.parents.find((p) => p.id === person.parentId);
-        if (parent?.phone) db.add('smsLog', { date: nowISO(), audience: `Parent of ${name}`, message: `${s.schoolName}: ${person.firstName} arrived at school at ${time}${late ? ' (late)' : ''}.`, to: [parent.phone], recipients: 1, status: 'Delivered' });
+        const to = parentPhones(db, [person]);
+        if (to.length) db.add('smsLog', { date: nowISO(), audience: `Parent of ${name}`, message: `${s.schoolName}: ${person.firstName} arrived at school at ${time}${late ? ' (late)' : ''}.`, to, recipients: to.length, status: 'Delivered' });
       }
     }
     return { action: 'in', record, name, late };
@@ -86,8 +87,8 @@ export function clock(personType, personId, method) {
   if (existing.inAt && Date.now() - new Date(existing.inAt).getTime() < 60_000) return { action: 'repeat', record: existing, name };
   db.update('clockings', id, { out: time, outMethod: method });
   if (personType === 'Student' && s.gate.notifyParents) {
-    const parent = db.parents.find((p) => p.id === person.parentId);
-    if (parent?.phone) db.add('smsLog', { date: nowISO(), audience: `Parent of ${name}`, message: `${s.schoolName}: ${person.firstName} left school at ${time}.`, to: [parent.phone], recipients: 1, status: 'Delivered' });
+    const to = parentPhones(db, [person]);
+    if (to.length) db.add('smsLog', { date: nowISO(), audience: `Parent of ${name}`, message: `${s.schoolName}: ${person.firstName} left school at ${time}.`, to, recipients: to.length, status: 'Delivered' });
   }
   return { action: 'out', record: { ...existing, out: time }, name };
 }

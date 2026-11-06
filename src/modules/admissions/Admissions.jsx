@@ -1,3 +1,4 @@
+import { LIVE } from '../../config';
 import { nextAdmissionNo } from '../../lib/numbers';
 import { admissionItems } from '../finance/shared';
 import { useMemo, useState } from 'react';
@@ -12,14 +13,16 @@ import PrintView, { Paper, Letterhead } from '../../components/PrintView';
 export const STAGES = ['Applied', 'Entrance Exam', 'Interview', 'Offered', 'Enrolled', 'Rejected'];
 const STAGE_TONE = { Applied: 'slate', 'Entrance Exam': 'blue', Interview: 'violet', Offered: 'amber', Enrolled: 'green', Rejected: 'red' };
 
-/** Enrol an accepted applicant: creates parent, student and the current-term bill. */
+/** Enrol an accepted applicant: student, parent link (or contact note) and the first bill. */
 export function enrolApplicant(app) {
   const db = useDB.getState();
   const cls = db.classes.find((c) => c.id === app.classId);
   const [title, ...rest] = String(app.parentName || 'Guardian').trim().split(/\s+/);
   const digits = (x) => String(x || '').replace(/\D/g, '').slice(-9);
   const existing = digits(app.parentPhone) && db.parents.find((p) => digits(p.phone) === digits(app.parentPhone));
-  const parent = existing || db.add('parents', {
+  // Live apps: parents come from their own accounts. Link a parent the school already has (same phone, e.g. a sibling's),
+  // otherwise note the name and phone on the student for texts until the parent joins with the admission number.
+  const parent = existing || (LIVE ? null : db.add('parents', {
     title: ['Mr.', 'Mrs.', 'Ms.', 'Dr.'].includes(title) ? title : 'Mr.',
     firstName: (['Mr.', 'Mrs.', 'Ms.', 'Dr.'].includes(title) ? rest : [title, ...rest]).slice(0, -1).join(' ') || rest[0] || title,
     lastName: String(app.parentName || '').trim().split(/\s+/).slice(-1)[0] || 'Guardian',
@@ -30,9 +33,9 @@ export function enrolApplicant(app) {
     email: app.parentEmail || '',
     occupation: '',
     address: '',
-  });
+  }));
   // The parent could not be saved (no permission): enrol nothing rather than leave the child without a parent.
-  if (!existing && !useDB.getState().parents.some((p) => p.id === parent.id)) return null;
+  if (parent && !existing && !useDB.getState().parents.some((p) => p.id === parent.id)) return null;
   const student = db.add('students', {
     admissionNo: nextAdmissionNo(db),
     firstName: app.firstName,
@@ -41,7 +44,9 @@ export function enrolApplicant(app) {
     gender: app.gender,
     dob: app.dob,
     classId: app.classId,
-    parentId: parent.id,
+    parentId: parent?.id || '',
+    parentName: parent ? '' : String(app.parentName || '').trim(),
+    parentPhone: parent ? '' : String(app.parentPhone || '').trim(),
     house: '',
     boarding: app.boarding || 'Day',
     dormId: null,

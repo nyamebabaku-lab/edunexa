@@ -9,10 +9,13 @@ const norm = (p) => {
 };
 const uniq = (list) => [...new Set(list.map(norm).filter(Boolean))];
 
-/** Main phone of each student's parent/guardian. */
+/** Phones of each student's guardians (both parent accounts), or the phone the school noted until a parent joins. */
 export function parentPhones(db, students) {
   const byId = new Map(db.parents.map((p) => [p.id, p]));
-  return uniq(students.map((s) => byId.get(s.parentId)?.phone));
+  return uniq(students.flatMap((s) => {
+    const own = [s.parentId, s.parentId2].filter(Boolean).map((id) => byId.get(id)?.phone).filter(Boolean);
+    return own.length ? own : [s.parentPhone];
+  }));
 }
 
 export const staffPhones = (staff) => uniq(staff.filter((s) => s.status !== 'Exited').map((s) => s.phone));
