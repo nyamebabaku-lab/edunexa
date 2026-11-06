@@ -787,6 +787,38 @@ export function buildSeed() {
   const canteenManager = canteen.canteenStaff[0];
   const securityGuard = staff.find((x) => x.role === 'Security');
 
+  // ---------- School transport: stop times and places, bus attendants, riders' stops (added last so the rest of the demo stays the same) ----------
+  const STOP_PLACES = {
+    rte_01: [[5.6363, -0.1062], [5.6392, -0.1229], [5.6245, -0.1337], [5.6327, -0.1418], [5.6207, -0.1514]],
+    rte_02: [[5.7052, -0.1664], [5.6935, -0.1680], [5.6748, -0.1683], [5.6644, -0.1772], [5.6586, -0.1663]],
+    rte_03: [[5.7022, -0.0122], [5.6585, -0.0263], [5.6501, -0.0703], [5.6133, -0.0773], [5.5966, -0.1146]],
+    rte_04: [[5.5441, -0.2610], [5.5378, -0.2469], [5.5660, -0.2365], [5.5793, -0.2246], [5.5701, -0.2070]],
+    rte_05: [[5.6136, -0.2275], [5.6528, -0.2299], [5.6693, -0.2391], [5.6716, -0.2050], [5.6865, -0.2223]],
+  };
+  const addMin = (hhmm, m) => { const [h, mm] = hhmm.split(':').map(Number); const t = h * 60 + mm + m; return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; };
+  routes.forEach((rt) => {
+    const names = rt.stops.split(',').map((x) => x.trim());
+    rt.pmDeparture = '14:45';
+    rt.stopList = names.map((name, i) => ({
+      id: `${rt.id}_s${i + 1}`, name, am: addMin(rt.departure, i * 12), pm: addMin('14:45', (names.length - i) * 12),
+      lat: STOP_PLACES[rt.id]?.[i]?.[0] ?? null, lng: STOP_PLACES[rt.id]?.[i]?.[1] ?? null,
+    }));
+  });
+  const ATTENDANTS = [['Mrs.', 'Gifty', 'Asare', 'Female'], ['Ms.', 'Linda', 'Owusu', 'Female'], ['Mr.', 'Kwabena', 'Adjei', 'Male'], ['Mrs.', 'Comfort', 'Badu', 'Female'], ['Ms.', 'Esi', 'Arthur', 'Female']];
+  buses.forEach((b, i) => {
+    const [title, firstName, lastName, gender] = ATTENDANTS[i % ATTENDANTS.length];
+    const n = staff.length + 1;
+    const a = { id: `stf_${pad(n)}`, staffNo: `BFIS/ST/${pad(n)}`, title, firstName, lastName, gender, role: 'Bus Attendant', department: 'Transport', phone: `024${String(5550100 + i).padStart(7, '0')}`, email: '', qualification: 'WASSCE', dateJoined: '2023-09-01', salary: 1500, allowances: 150, status: 'Active', ssnitNo: '', bank: '', accountNo: '' };
+    staff.push(a);
+    b.attendantId = a.id;
+  });
+  students.filter((x) => x.busRouteId).forEach((x, i) => {
+    const rt = routes.find((y) => y.id === x.busRouteId);
+    x.busStopId = rt.stopList[i % rt.stopList.length].id;
+  });
+  const busDriver = staff.find((x) => x.id === buses[0].driverId);
+  const busAttendant = staff.find((x) => x.id === buses[0].attendantId);
+
   const users = [
     { id: 'usr_admin', role: 'admin', name: `${staff[0].title} ${staff[0].firstName} ${staff[0].lastName}`, linkedId: staff[0].id, email: staff[0].email },
     { id: 'usr_teacher', role: 'teacher', name: `Mr. ${demoTeacher.firstName} ${demoTeacher.lastName}`, linkedId: demoTeacher.id, email: demoTeacher.email },
@@ -797,6 +829,8 @@ export function buildSeed() {
     { id: 'usr_storekeeper', role: 'storekeeper', name: `Mr. ${storekeeper.firstName} ${storekeeper.lastName}`, linkedId: storekeeper.id, email: storekeeper.email },
     { id: 'usr_transport', role: 'transport', name: `Mr. ${transportOfficer.firstName} ${transportOfficer.lastName}`, linkedId: transportOfficer.id, email: transportOfficer.email },
     { id: 'usr_canteen', role: 'canteen', name: `Mrs. ${canteenManager.firstName} ${canteenManager.lastName}`, linkedId: canteenManager.id, email: canteenManager.email },
+    { id: 'usr_driver', role: 'driver', name: `${busDriver.title} ${busDriver.firstName} ${busDriver.lastName}`, linkedId: busDriver.id, email: busDriver.email },
+    { id: 'usr_attendant', role: 'attendant', name: `${busAttendant.title} ${busAttendant.firstName} ${busAttendant.lastName}`, linkedId: busAttendant.id, email: '' },
     { id: 'usr_staff', role: 'staff', name: `${securityGuard.title} ${securityGuard.firstName} ${securityGuard.lastName}`, linkedId: securityGuard.id, email: securityGuard.email },
     { id: 'usr_super', role: 'superadmin', name: 'Platform Super Admin', linkedId: null, email: 'superadmin@edunexa.app' },
   ];

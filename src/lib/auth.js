@@ -31,6 +31,7 @@ const samePhone = (a, b) => digits(a) && digits(a).slice(-9) === digits(b).slice
 const STAFF_ROLE = {
   Administrator: 'admin', Teacher: 'teacher', Accountant: 'accountant', Librarian: 'librarian', Storekeeper: 'storekeeper',
   'Transport Officer': 'transport', 'Canteen Manager': 'canteen', 'Head Teacher': 'headteacher', 'Hostel Manager': 'hostel',
+  Driver: 'driver', 'Bus Attendant': 'attendant',
 };
 export const portalRoleForStaff = (s) => STAFF_ROLE[s.role] || 'staff';
 

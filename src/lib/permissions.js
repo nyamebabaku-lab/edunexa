@@ -19,6 +19,8 @@ export const ROLES = {
   staff: { label: 'Support Staff', short: 'Staff', color: 'teal', desc: 'Drivers, security, cleaners and kitchen staff: clock in/out and notices.' },
   canteen: { label: 'Canteen Manager', short: 'Canteen', color: 'emerald', desc: 'Food menu, point of sale, kitchen stock and canteen income.' },
   hostel: { label: 'Hostel / Boarding Manager', short: 'Hostel', color: 'violet', desc: 'Halls, bed allocation, boarders and exeats.' },
+  driver: { label: 'Driver', short: 'Driver', color: 'orange', desc: 'Drives a school bus: starts and ends trips; the phone shares the bus location during a trip.' },
+  attendant: { label: 'Bus Attendant', short: 'Attendant', color: 'amber', desc: 'Rides the school bus: ticks children on and off at each stop and shares the bus location.' },
   kiosk: { label: 'Gate Kiosk', short: 'Kiosk', color: 'slate', desc: 'A device at the school gate that shows the rotating QR code and scans ID cards.' },
 };
 
@@ -29,7 +31,7 @@ export const NAV = [
     group: 'Overview',
     items: [
       { key: 'dashboard', label: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ALL },
-      { key: 'clock', label: 'Clock in / out', path: '/clock', icon: ScanLine, roles: ['admin', 'headteacher', 'teacher', 'student', 'accountant', 'librarian', 'storekeeper', 'transport', 'canteen', 'hostel', 'staff'], module: 'gate' },
+      { key: 'clock', label: 'Clock in / out', path: '/clock', icon: ScanLine, roles: ['admin', 'headteacher', 'teacher', 'student', 'accountant', 'librarian', 'storekeeper', 'transport', 'driver', 'attendant', 'canteen', 'hostel', 'staff'], module: 'gate' },
       { key: 'gate', label: 'Gate Attendance', path: '/gate', icon: DoorOpen, roles: ['admin', 'headteacher'], module: 'gate' },
       { key: 'kiosk', label: 'Gate kiosk screen', path: '/gate/kiosk', icon: QrCode, roles: ['admin', 'kiosk'], module: 'gate', hidden: true },
     ],
@@ -69,7 +71,7 @@ export const NAV = [
   {
     group: 'Operations',
     items: [
-      { key: 'transport', label: 'Transport', path: '/transport', icon: Bus, roles: ['admin', 'headteacher', 'transport', 'parent'], module: 'transport' },
+      { key: 'transport', label: 'Transport', path: '/transport', icon: Bus, roles: ['admin', 'headteacher', 'transport', 'driver', 'attendant', 'parent'], module: 'transport' },
       { key: 'library', label: 'Library', path: '/library', icon: Library, roles: ['admin', 'headteacher', 'librarian', 'student'], module: 'library' },
       { key: 'store', label: 'Store & Inventory', path: '/store', icon: Package, roles: ['admin', 'headteacher', 'storekeeper'], module: 'store' },
       { key: 'canteen', label: 'Canteen', path: '/canteen', icon: UtensilsCrossed, roles: ['admin', 'headteacher', 'canteen', 'accountant', 'parent', 'student'], module: 'canteen' },
@@ -145,6 +147,8 @@ export const MOBILE_TABS = {
   headteacher: ['dashboard', 'students', 'attendance', 'reportcards'],
   hostel: ['dashboard', 'hostel', 'communication', 'calendar'],
   kiosk: ['dashboard'],
+  driver: ['dashboard', 'transport', 'clock', 'communication'],
+  attendant: ['dashboard', 'transport', 'clock', 'communication'],
   staff: ['dashboard', 'clock', 'communication', 'calendar'],
 };
 

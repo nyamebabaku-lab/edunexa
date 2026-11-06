@@ -18,7 +18,7 @@ import { FrontBackdrop, useFrontImage } from '../../components/FrontImage';
 import { rememberedSchool } from '../../lib/front';
 import { Button, Field, Input, Badge, Card, Spinner, toast, cx } from '../../components/ui';
 
-const MEMBER_ROLES = ['teacher', 'parent', 'student', 'headteacher', 'accountant', 'librarian', 'storekeeper', 'transport', 'canteen', 'hostel', 'staff', 'kiosk'];
+const MEMBER_ROLES = ['teacher', 'parent', 'student', 'headteacher', 'accountant', 'librarian', 'storekeeper', 'transport', 'driver', 'attendant', 'canteen', 'hostel', 'staff', 'kiosk'];
 const NEEDS_ADMISSION = (r) => r === 'parent' || r === 'student';
 
 function PasswordInput({ value, onChange, placeholder = 'Password', autoComplete = 'current-password' }) {

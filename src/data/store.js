@@ -145,10 +145,10 @@ export const useDB = create(
     }),
     {
       name: storeKey('edunexa-db'),
-      version: 4,
+      version: 5,
       // Newer versions add collections, accounts and settings; bring them in without touching saved data.
       migrate: (persisted, version) => {
-        if (version >= 4 || !persisted || LIVE) return persisted;
+        if (version >= 5 || !persisted || LIVE) return persisted;
         const seed = buildSeed();
         const out = { ...persisted };
         Object.keys(seed).forEach((k) => {
@@ -160,6 +160,12 @@ export const useDB = create(
         };
         addMissing('users');
         addMissing('staff');
+        // v5: stop times and places on routes, bus attendants, each rider's stop.
+        const byId = (list) => new Map((list || []).map((x) => [x.id, x]));
+        const sr = byId(seed.routes), sb = byId(seed.buses), ss = byId(seed.students);
+        out.routes = (out.routes || []).map((x) => (x.stopList || !sr.get(x.id) ? x : { ...x, stopList: sr.get(x.id).stopList, pmDeparture: sr.get(x.id).pmDeparture }));
+        out.buses = (out.buses || []).map((x) => (x.attendantId || !sb.get(x.id) ? x : { ...x, attendantId: sb.get(x.id).attendantId }));
+        out.students = (out.students || []).map((x) => (x.busStopId || !x.busRouteId || ss.get(x.id)?.busRouteId !== x.busRouteId ? x : { ...x, busStopId: ss.get(x.id).busStopId }));
         out.users = out.users.map((u) => ({ status: 'Active', phone: '', lastLogin: null, ...u }));
         const st = { ...seed.settings, ...out.settings };
         ['theme', 'modules', 'auth', 'gate', 'live'].forEach((k) => (st[k] = { ...seed.settings[k], ...(out.settings[k] || {}) }));

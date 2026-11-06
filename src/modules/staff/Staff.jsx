@@ -11,7 +11,7 @@ import { PhotoField } from '../../components/PhotoEditor';
 import CrudPage from '../../components/CrudPage';
 import { photoKey, applyPhotoChange } from '../../data/photos';
 
-export const STAFF_ROLES = ['Teacher', 'Head Teacher', 'Administrator', 'Accountant', 'Librarian', 'Storekeeper', 'Transport Officer', 'Canteen Manager', 'Hostel Manager', 'Support Staff', 'Nurse', 'Driver', 'Security', 'Cleaner', 'Cook', 'Matron'];
+export const STAFF_ROLES = ['Teacher', 'Head Teacher', 'Administrator', 'Accountant', 'Librarian', 'Storekeeper', 'Transport Officer', 'Canteen Manager', 'Hostel Manager', 'Support Staff', 'Nurse', 'Driver', 'Bus Attendant', 'Security', 'Cleaner', 'Cook', 'Matron'];
 export const DEPARTMENTS = ['Early Years', 'Primary', 'JHS', 'SHS', 'Diploma', 'Administration', 'Finance', 'Library', 'Stores', 'Transport', 'Health', 'Support'];
 
 export const staffFields = [

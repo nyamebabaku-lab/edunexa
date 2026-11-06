@@ -22,6 +22,7 @@ import { sessionStatus } from '../../lib/live';
 import { sortedPeriods } from '../../data/selectors';
 import { FrontBackdrop, useFrontImage } from '../../components/FrontImage';
 import { LinkChildCard } from '../parents/LinkChild';
+import { crewBus, routeOfBus } from '../../lib/transport';
 import { photoKey } from '../../data/photos';
 
 function Hello({ name, sub, display }) {
@@ -907,6 +908,36 @@ function StaffDashboard({ user }) {
   );
 }
 
+/** Driver and Bus Attendant: their bus, today's trips and a quick way into the trip screen. */
+function CrewDashboard({ user }) {
+  const db = useDB();
+  const navigate = useNavigate();
+  const bus = crewBus(db, user.linkedId);
+  const route = routeOfBus(db, bus);
+  const trips = db.trips.filter((t) => bus && t.busId === bus.id && t.date === TODAY);
+  const running = trips.find((t) => t.status === 'Running');
+  return (
+    <>
+      <Hello name={user.name} sub={user.role === 'driver' ? 'Driver' : 'Bus attendant'} />
+      <Card className="mb-6 overflow-hidden">
+        <div className={cx('flex flex-wrap items-center gap-4 p-5 text-white', running ? 'bg-gradient-to-r from-accent-600 to-accent-500' : 'bg-gradient-to-r from-brand-700 to-brand-600')}>
+          <Bus className="h-8 w-8" />
+          <div className="min-w-0 flex-1">
+            <p className="text-lg font-extrabold">{bus ? `${bus.regNo} · ${route?.name || 'no route yet'}` : 'No bus assigned yet'}</p>
+            <p className="text-sm text-white/85">{running ? `${running.type} running since ${running.departed}` : bus ? `${trips.length} trip${trips.length === 1 ? '' : 's'} today` : 'Ask the Transport Officer to put you on a bus'}</p>
+          </div>
+          {bus && <Button variant="secondary" onClick={() => navigate('/transport')}>{running ? 'Open trip' : 'Start a trip'}</Button>}
+        </div>
+      </Card>
+      <ClockCard />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Notices audience={['Staff']} />
+        <UpcomingEvents />
+      </div>
+    </>
+  );
+}
+
 export default function Dashboard() {
   const user = useCurrentUser();
   if (LIVE && user.role === 'superadmin') return <PlatformDashboard />;
@@ -919,6 +950,9 @@ export default function Dashboard() {
     case 'staff':
     case 'hostel':
       return <StaffDashboard user={user} />;
+    case 'driver':
+    case 'attendant':
+      return <CrewDashboard user={user} />;
     case 'teacher':
       return <TeacherDashboard user={user} />;
     case 'parent':
@@ -935,6 +969,6 @@ export default function Dashboard() {
     case 'canteen':
       return <CanteenDashboard user={user} />;
     default:
-      return null;
+      return <StaffDashboard user={user} />;
   }
 }

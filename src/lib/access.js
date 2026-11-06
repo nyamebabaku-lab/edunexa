@@ -22,7 +22,7 @@ export const COLLECTIONS = [
 export const KV_COLLECTIONS = ['timetable', 'reportRemarks', 'canteenMenu', 'boardingFee', 'expenseCategories'];
 
 /** Staff-side roles that join a school (the Owner/Admin is 'admin'). */
-export const MEMBER_ROLES = ['headteacher', 'teacher', 'accountant', 'librarian', 'storekeeper', 'transport', 'canteen', 'hostel', 'staff', 'kiosk', 'parent', 'student'];
+export const MEMBER_ROLES = ['headteacher', 'teacher', 'accountant', 'librarian', 'storekeeper', 'transport', 'driver', 'attendant', 'canteen', 'hostel', 'staff', 'kiosk', 'parent', 'student'];
 export const ALL_ROLES = ['admin', ...MEMBER_ROLES];
 
 const SCHOOL_BASICS = ['terms', 'periods', 'subjects', 'classes', 'notices', 'events', 'timetable', 'houses', 'exams'];
@@ -86,6 +86,18 @@ export const ACCESS = {
     grant(m, ['parents'], 'all');
     grant(m, TRANSPORT, 'all', 'all');
     grant(m, ['students'], 'all', 'all'); // assigning riders to routes
+  }),
+
+  // Bus crew: run trips (tick children on/off, save stop locations), see routes and riders' parents to call them.
+  driver: staffBase((m) => {
+    grant(m, ['parents', 'routes', 'buses'], 'all');
+    grant(m, ['trips'], 'all', 'all');
+    grant(m, ['routes'], 'all', 'all'); // saving a stop's location from the bus
+  }),
+  attendant: staffBase((m) => {
+    grant(m, ['parents', 'routes', 'buses'], 'all');
+    grant(m, ['trips'], 'all', 'all');
+    grant(m, ['routes'], 'all', 'all');
   }),
 
   canteen: staffBase((m) => {
