@@ -62,7 +62,10 @@ export function resolveParent(v) {
   const same = db.parents.find((p) => digits(p.phone) && digits(p.phone) === digits(v.phone));
   if (same) return same.id;
   const female = ['Mrs.', 'Ms.'].includes(v.title) || ['Mother', 'Aunt'].includes(v.relation);
-  return db.add('parents', { title: v.title || '', relation: v.relation || 'Guardian', firstName: v.firstName.trim(), lastName: v.lastName.trim(), phone: v.phone.trim(), gender: female ? 'Female' : 'Male', altPhone: '', email: '', occupation: '', address: '' }).id;
+  const rec = db.add('parents', { title: v.title || '', relation: v.relation || 'Guardian', firstName: v.firstName.trim(), lastName: v.lastName.trim(), phone: v.phone.trim(), gender: female ? 'Female' : 'Male', altPhone: '', email: '', occupation: '', address: '' });
+  // Not allowed to save parents: stop, so the student is never linked to a parent that doesn't exist.
+  if (!useDB.getState().parents.some((p) => p.id === rec.id)) return null;
+  return rec.id;
 }
 
 /** Asks, then deletes the students with their own records. Resolves true when deleted. */

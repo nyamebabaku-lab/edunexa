@@ -61,7 +61,7 @@ insert into edunexa.access (role, col, rd, wr) values
   ('headteacher', 'allocations', 'all', 'all'),
   ('headteacher', 'staff', 'all', 'none'),
   ('headteacher', 'leaves', 'all', 'all'),
-  ('headteacher', 'parents', 'all', 'none'),
+  ('headteacher', 'parents', 'all', 'all'),
   ('headteacher', 'students', 'all', 'all'),
   ('headteacher', 'applications', 'all', 'all'),
   ('headteacher', 'attendance', 'all', 'all'),

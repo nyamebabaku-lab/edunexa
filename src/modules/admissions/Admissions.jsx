@@ -31,6 +31,8 @@ export function enrolApplicant(app) {
     occupation: '',
     address: '',
   });
+  // The parent could not be saved (no permission): enrol nothing rather than leave the child without a parent.
+  if (!existing && !useDB.getState().parents.some((p) => p.id === parent.id)) return null;
   const student = db.add('students', {
     admissionNo: nextAdmissionNo(db),
     firstName: app.firstName,
@@ -129,6 +131,7 @@ export default function Admissions() {
   const enrol = async (a) => {
     if (!(await confirmDialog('Enrol applicant?', `This creates a student record for ${a.firstName} ${a.lastName} in ${L.className(a.classId)}, a parent record and the term's fee bill.`, { danger: false, confirmLabel: 'Enrol student' }))) return;
     const s = enrolApplicant(a);
+    if (!s) return;
     toast.success('Student enrolled', `${s.admissionNo} · invoice generated`);
     navigate(`/students/${s.id}`);
   };

@@ -53,11 +53,11 @@ export const ACCESS = {
   admin: Object.fromEntries(COLLECTIONS.map((c) => [c, c === 'messages' ? ['mine', 'mine'] : ['all', 'all']])),
 
   headteacher: staffBase((m) => {
-    grant(m, ['students', 'applications', 'allocations', 'classes', 'subjects', 'terms', 'periods', 'timetable', 'notices', 'events'], 'all', 'all');
+    grant(m, ['students', 'parents', 'applications', 'allocations', 'classes', 'subjects', 'terms', 'periods', 'timetable', 'notices', 'events'], 'all', 'all');
     grant(m, ACADEMIC, 'all', 'all');
     grant(m, WELFARE, 'all', 'all');
     grant(m, ['photos', 'leaves', 'clockings', 'smsLog', 'exeats'], 'all', 'all');
-    grant(m, ['staff', 'parents', 'dorms'], 'all');
+    grant(m, ['staff', 'dorms'], 'all');
     grant(m, FINANCE, 'all'); // view only
     grant(m, [...LIBRARY, ...STORE, ...TRANSPORT, ...CANTEEN], 'all');
   }),
